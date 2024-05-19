@@ -6,3 +6,6 @@
 -define(LOGOUT_ACCOUNT, "3").
 -define(JOIN_ROOM, "4").
 -define(LEAVE_ROOM, "5").
+-define(CHANGE_NAME, "6").
+-define(CHANGE_PASS, "7").
+-define(REMOVE_ACCOUNT, "8").
