@@ -8,7 +8,7 @@ class Animation {
     images = new PImage[60];
 
     for (int i = 0; i < imageCount;i++){
-      String filename = model + "_" + nf(i,2)+ ".png";
+      String filename = "sun/" + model + "_" + nf(i,2)+ ".png";
       images[i] = loadImage(filename);
     }
   }

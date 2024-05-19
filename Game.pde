@@ -1,3 +1,16 @@
+import controlP5.*;
+ControlP5 cp5;
+
+enum State {
+    MENU,
+    LOGIN,
+    REGISTER,
+    GAME,
+    LOADING
+}
+
+State state;
+Menu startMenu, loginMenu, registerMenu, playMenu;
 float sun_radius = 135f;
 ArrayList<PShape> rings = new ArrayList<PShape>();
 Animation sun;
@@ -5,9 +18,6 @@ Player player;
 HashMap<Character, Boolean> keyMap = new HashMap<>();
 PFont nightcore;
 ArrayList<Planet> planets = new ArrayList<Planet>();
-int state;
-final int LOADING = 0; //LOADING MENU
-final int GAME = 1; //The Game state
 int counter = 60 * 10; // 60 FPS, 5 seconds total
 
 // Loading variables
@@ -19,26 +29,38 @@ float i, m, n, p, s, t, x, y;
  
 
 void setup() {
-  fullScreen(P3D);
-  //state = GAME;
+  fullScreen(P3D); // Set to FullScreen by default, not sure if this can be changed in settings after setup
+  cp5 = new ControlP5(this); // Initialize controlP5 for textboxes and user input
+  // Get fonts 
+  nightcore = createFont("fonts/nightcore.ttf", 200);
+  campus = createFont("fonts/asupermario.ttf", 150);
+  // Initialize menus 
+  startMenu = new Menu();
+  initializeStartMenu();
+  loginMenu = new Menu();
+  initializeLoginMenu();
+  
+  // State starts at MENU screen
+  state = State.MENU;  
   
   // Create a new Animation of the Sun
   sun = new Animation("sun",60);
-  // Create a new instance of Player
+  // Create a new instance of Player -- TODO - Maybe delay this until player actually gets in the game ? Not sure if it makes a difference
   player = new Player();
+  
+  // Add players -- TODO
   Planet planet1 = new Planet("planet1", 1);
   planets.add(planet1);
-  nightcore = createFont("nightcore.ttf", 200);
-  campus = createFont("asupermario.ttf", 150);
   
-  // Initialize the keyMap for player input
+
+  
+  // Initialize the keyMap for player input -- this probably will not be used
   keyMap.put('w', false); // W -> false (not pressed)
   keyMap.put('a', false); // A -> false (not pressed)
   keyMap.put('s', false); // S -> false (not pressed)
   keyMap.put('d', false); // D -> false (not pressed)
   
   smooth(8);
-  
   
   /*
   Initialize universe scenery contained within the rings array
@@ -63,6 +85,24 @@ void setup() {
   frameRate(60);
 }
 
+void initializeStartMenu() {
+  Button loginBtn = new Button("login", displayWidth/2 - 200, (displayHeight/2) - 300);
+  Button registerBtn = new Button("register", displayWidth/2 - 200, (displayHeight/2) - 150);
+  Button settingsBtn = new Button("settings", displayWidth/2 - 200, (displayHeight/2));
+  Button exitBtn = new Button("exit", displayWidth/2-200, (displayHeight/2) + 150);
+  startMenu.addButton(loginBtn);
+  startMenu.addButton(registerBtn);
+  startMenu.addButton(settingsBtn);
+  startMenu.addButton(exitBtn);
+}
+
+void initializeLoginMenu() {
+  Button loginBtn = new Button("login", displayWidth/2-200, displayHeight * 0.7);
+  Button backBtn = new Button("back", displayWidth/2-200, (displayHeight * 0.7) + 150);
+  loginMenu.addButton(loginBtn);
+  loginMenu.addButton(backBtn);
+  
+}
 
   // Key pressed method
   void keyPressed() {
@@ -78,6 +118,73 @@ void setup() {
     }
   }
   
+void mousePressed() {
+  switch(state) {
+    case MENU:
+      checkStartMenuButtons();
+      break;
+    case LOGIN:
+      checkLoginMenuButtons();
+      break;
+    default:
+      break;
+  }
+}
+  
+void checkStartMenuButtons() {
+  for (Button b: startMenu.getButtons()) {
+    if (b.isClicked()) {
+      //println("Clicked button");
+
+      switch (b.getName()) {
+        case "login":
+          state = State.LOGIN;
+          drawTextFields();
+          //println("Got the login\n");
+          break;
+        case "register":
+          state = State.REGISTER;
+          break;
+        case "settings":
+          break;
+        case "exit":
+          exit();
+          return;
+      }
+      break;
+    }
+  }
+}
+        
+void checkLoginMenuButtons() {
+  for (Button b: loginMenu.getButtons()) {
+    if (b.isClicked()) {
+      switch(b.getName()) {
+        case "login":
+          state = State.GAME;
+          break;
+        case "back":
+          state = State.MENU;
+          break;
+        default:
+          break;
+      }
+    }
+  }
+}
+          
+
+void drawTextFields() {
+  // CP5 library is overkill for this - will make my own textfield
+  /* Textfield b = cp5.addTextfield("Username")
+      .setPosition(displayWidth/2-200, displayHeight/2 - 200)
+        .setSize(400, 50)
+          .setAutoClear(false)
+            .setColorBackground(75)
+              .setFocus(true)
+                  .setFont(createFont("arial", 30));
+                  */
+}
 
   
 void drawRings() {
@@ -133,7 +240,7 @@ void drawPlanets() {
 }
 
 void drawPlayerBoost() {
-  int boost = (int)player.getBoost() / 10;
+  int boost = (int)player.getBoost();
   textSize(36);
   fill(255);
   if (boost == 0) fill(100);
@@ -149,11 +256,9 @@ void drawMargins() { // Unused, they looked ugly and out of place
   line(0,displayHeight, displayWidth, displayHeight); // horizontal bottom line
 }
 
-void draw() {
-  background(15);
-  switch(state) {
-    case LOADING:
-      textFont(campus);
+
+void loadingScreen() {
+       textFont(campus);
       if (points < 50) text("LOADING", 580, displayHeight-100);
       else if (points < 100) text("LOADING.", 580, displayHeight-100);
       else if (points < 150) text("LOADING..", 580, displayHeight-100);
@@ -175,14 +280,29 @@ void draw() {
         rect(x, y, s, s);
       }
       popMatrix();
+}
+void draw() {
+  background(15);
+  drawRings();
+  switch(state) {
+    case MENU:
+      startMenu.drawMenu();
+      break;
+    case LOGIN:
+      loginMenu.drawMenu();
+      break;
+    case REGISTER:
+      break;
+    case LOADING:
+      loadingScreen();
       if (frameCount == counter){
-        state = GAME;
+        state = State.GAME;
         delay(1000);
       }
       break;
     case GAME:
       //drawMargins();
-      drawRings();
+      //drawRings();
       drawPlayer();
       //drawPlanets();
       drawSun();

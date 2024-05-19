@@ -7,7 +7,7 @@ class Player {
   float[] playerColors;
   float radius = 25f; // default radius of a player 
   PVector sunPos = new PVector(displayWidth/2, displayHeight/2);
-  float booster = 1000f;
+  float booster = 100f;
 
   Player() {
     location = new PVector(200,200);
@@ -33,6 +33,13 @@ class Player {
 
   }
   
+  void setPos(PVector pos) {
+    this.location = pos;
+  }
+  
+  void setVelocity(PVector vel) {
+    this.velocity = vel;
+  }
   
   void applyGravity(HashMap<Character, Boolean> keyMap) {
     PVector sun = new PVector(displayWidth/2, displayHeight/2);
