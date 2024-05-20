@@ -12,38 +12,37 @@ server(Port) ->
     Result = gen_tcp:listen(Port, [binary, {packet, line}, {reuseaddr, true}]),
     case Result of
         {ok, LSock} ->
-            OfflineProc = spawn(fun() -> offline:start() end),
-            io:fwrite("~p\n", [OfflineProc]),
-            Pid = spawn(fun() -> init(LSock, OfflineProc, ok) end),
-            OfflineProc ! {load, Pid},
+            register(offProc, spawn(fun() -> offline:start() end)),
+            Pid = spawn(fun() -> init(LSock) end),
+            offProc ! {load, Pid},
             Pid;
         {error, Reason} ->
             io:fwrite("Error generating socket\n"),
             Reason
     end.
 
-init(Sock, OfflineProc, AProc)->
+init(Sock)->
     receive
         {loaded, Data} ->
             io:fwrite("Loaded~p\n", [Data]),
-            AccsProc = spawn(fun()->accounts:management(maps:new(), Data) end),
-            spawn(fun() -> acceptor(Sock, OfflineProc, AccsProc) end),
-            init(Sock, OfflineProc, AccsProc);
+            register(accsProc, spawn(fun()->accounts:management(maps:new(), Data) end)),
+            spawn(fun() -> acceptor(Sock) end),
+            init(Sock);
         {error, Reason} ->
             io:fwrite("Error loading accounts~p\n", [Reason]),
-            init(Sock, OfflineProc, AProc);
+            init(Sock);
         stop -> 
             gen_tcp:close(Sock),
-            AProc ! {shutdown, OfflineProc},
-            OfflineProc ! off
+            accsProc ! {shutdown, offProc},
+            offProc ! off
     end.
 
-acceptor(LSock, OfflineProc, AccsProc) ->
+acceptor(LSock) ->
     case gen_tcp:accept(LSock) of 
         {ok, Socket} ->
-            spawn(fun() -> acceptor(LSock, OfflineProc, AccsProc) end),
-            AccsProc ! {online, self()},
-            userAuth(Socket, OfflineProc, AccsProc, "main", "Anonymous");
+            spawn(fun() -> acceptor(LSock) end),
+            accsProc ! {online, self()},
+            userAuth(Socket, "main", "Anonymous");
         {error, closed} ->
             io:fwrite("Closed socket");
         {error, timeout} ->
@@ -52,69 +51,69 @@ acceptor(LSock, OfflineProc, AccsProc) ->
             io:fwrite("Error listening to socket")
     end.
 
-userAuth(Sock, OfflineProc, AccsProc, Lobby, User) ->
+userAuth(Sock, Lobby, User) ->
     receive
         {broadcast, Data} ->
             gen_tcp:send(Sock, Data),
             gen_tcp:send(Sock, "!-SVDONE-!\n"),
-            userAuth(Sock, OfflineProc, AccsProc, Lobby, User);
+            userAuth(Sock, Lobby, User);
         {accounts, Data} ->
             case Data of
                 {new_name, Name} ->
-                    userAuth(Sock, OfflineProc, AccsProc, Lobby, Name);
+                    userAuth(Sock, Lobby, Name);
                 {new_room, Room} ->
-                    userAuth(Sock, OfflineProc, AccsProc, Room, User);
+                    userAuth(Sock, Room, User);
                 {start} ->
-                    userAuth(Sock, OfflineProc, AccsProc, Lobby, User) % send this pid to play and wait for the game, this line is only to compile
+                    userAuth(Sock, Lobby, User) % send this pid to play and wait for the game, this line is only to compile
             end;
         {tcp, _, Data} -> % falta criacao de salas e checkar se existe
             case re:split(binary_to_list(Data), "@@@") of
                 [<<?CREATE_ACCOUNT>>, UserName, Password] ->
-                    AccsProc ! {create_account, 
+                    accsProc ! {create_account, 
                     string:trim(binary_to_list(UserName), trailing), 
                     string:trim(binary_to_list(Password), trailing), 
-                    self(), OfflineProc},
-                    userAuth(Sock, OfflineProc, AccsProc, Lobby, User);
+                    self(), offProc},
+                    userAuth(Sock, Lobby, User);
                 [<<?LOGIN_ACCOUNT>>, UserName, Password] ->
-                    AccsProc ! {login, 
+                    accsProc ! {login, 
                     string:trim(binary_to_list(UserName), trailing), 
                     string:trim(binary_to_list(Password), trailing), 
                     self()},
-                    userAuth(Sock, OfflineProc, AccsProc, Lobby, UserName);
+                    userAuth(Sock, Lobby, UserName);
                 [<<?LOGOUT_ACCOUNT>>, _] ->
-                    AccsProc ! {logout, self()},
-                    userAuth(Sock, OfflineProc, AccsProc, Lobby, User);
+                    accsProc ! {logout, self()},
+                    userAuth(Sock, Lobby, User);
                 [<<?JOIN_ROOM>>, Room] ->
-                    AccsProc ! {join, Room, self()},
-                    userAuth(Sock, OfflineProc, AccsProc, Lobby, User);
+                    accsProc ! {join, Room, self()},
+                    userAuth(Sock, Lobby, User);
                 [<<?LEAVE_ROOM>>, _] ->
-                    AccsProc ! {leave, self()},
-                    userAuth(Sock, OfflineProc, AccsProc, Lobby, User);
+                    accsProc ! {leave, self()},
+                    userAuth(Sock, Lobby, User);
                 [<<?CHANGE_NAME>>, Name] ->
-                    AccsProc ! {change_name, 
+                    accsProc ! {change_name, 
                         string:trim(binary_to_list(Name), trailing), 
-                    self(), OfflineProc},
-                    userAuth(Sock, OfflineProc, AccsProc, Lobby, User);
+                    self(), offProc},
+                    userAuth(Sock, Lobby, User);
                 [<<?CHANGE_PASS>>, Pass] ->
-                    AccsProc ! {change_pass, 
+                    accsProc ! {change_pass, 
                         string:trim(binary_to_list(Pass), trailing), 
-                        self(), OfflineProc},
-                    userAuth(Sock, OfflineProc, AccsProc, Lobby, User);
+                        self(), offProc},
+                    userAuth(Sock, Lobby, User);
                 [<<?REMOVE_ACCOUNT>>, _] ->
-                    AccsProc ! {remove_account, self(), OfflineProc},
-                    userAuth(Sock, OfflineProc, AccsProc, Lobby, User);
+                    accsProc ! {remove_account, self(), offProc},
+                    userAuth(Sock, Lobby, User);
                 _ ->
                     gen_tcp:send(Sock, "Error: Incorrect syntax.\n"),
                     gen_tcp:send(Sock, "!-SVDONE-!\n"),
-                    userAuth(Sock, OfflineProc, AccsProc, Lobby, User)
+                    userAuth(Sock, Lobby, User)
             end;
         {tcp_closed, _} ->
-            AccsProc ! {offline, self()};
+            accsProc ! {offline, self()};
         {tcp_error, _, _} ->
-            AccsProc ! {offline, self()};
+            accsProc ! {offline, self()};
         _ ->
             io:fwrite("ERROR\n"),
-            userAuth(Sock, OfflineProc, AccsProc, Lobby, User)
+            userAuth(Sock, Lobby, User)
     end.
 
 

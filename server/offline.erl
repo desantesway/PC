@@ -31,6 +31,5 @@ offline(Saved) ->
                 ok;
             true ->
                 offline(Saved)
-            end;
-        _-> io:format("idk"), offline(Saved)
+            end
     end.
