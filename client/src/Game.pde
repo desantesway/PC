@@ -1,7 +1,7 @@
 import controlP5.*;
 
 ControlP5 cp5;
-Textfield usernameField, passwordField;
+Textfield usernameField, passwordField, lobbyNameField;
 
 enum State {
     MENU,
@@ -9,6 +9,8 @@ enum State {
     REGISTER,
     PLAY,
     LOBBY,
+    ROOM_CREATION,
+    ROOM,
     GAME,
     LOADING
 }
@@ -24,13 +26,15 @@ private static final int LEAVE_ROOM = 5;
 private static final int CHANGE_NAME = 6;
 private static final int CHANGE_PASS = 7;
 private static final int REMOVE_ACCOUNT = 8;
+private static final int CREATE_ROOM = 9;
 // end change this
 
 
 
 TCP tcp;
 State state;
-Menu startMenu, loginMenu, registerMenu, playMenu;
+Menu startMenu, loginMenu, registerMenu, playMenu, lobbyMenu, roomCreationMenu;
+Lobby roomLobby;
 float sun_radius = 135f;
 ArrayList<PShape> rings = new ArrayList<PShape>();
 Animation sun;
@@ -70,6 +74,11 @@ void setup() {
   initializeRegisterMenu();
   playMenu = new Menu();
   initializePlayMenu();
+  roomCreationMenu = new Menu();
+  initializeRoomCreationMenu();
+  roomLobby = new Lobby();
+  
+  
   
   // State starts at MENU screen
   state = State.MENU;  
@@ -116,6 +125,16 @@ void setup() {
   frameRate(60);
 }
 
+
+void initializeRoomCreationMenu() {
+  Button createBtn = new Button("create", displayWidth/2 - 400, displayHeight/2 + 100); 
+  Button exitBtn = new Button("exit", displayWidth/2 + 100, displayHeight/2 + 100);
+  roomCreationMenu.addButton(createBtn);
+  roomCreationMenu.addButton(exitBtn);
+  
+}
+
+
 void initializeStartMenu() {
   Button loginBtn = new Button("login", displayWidth/2 - 200, (displayHeight/2) - 300);
   Button registerBtn = new Button("register", displayWidth/2 - 200, (displayHeight/2) - 150);
@@ -151,6 +170,13 @@ void initializeLoginMenu() {
                      .setFont(createFont("arial",42))
                      .setVisible(false);
   
+  lobbyNameField = cp5.addTextfield("Lobby name")
+                      .setPosition((displayWidth/2 - 200),(displayHeight/2) - 250)
+                      .setSize(400,75)
+                      .setColor(255)
+                      .setColorBackground(255)
+                      .setFont(createFont("arial",42))
+                      .setVisible(false);
 }
 
 
@@ -162,10 +188,12 @@ void initializeRegisterMenu() {
 }
 
 void initializePlayMenu() {
-  Button playBtn = new Button("play", displayWidth/2 - 200, displayHeight/2 - 300);
-  Button logoutBtn = new Button("logout", displayWidth/2 - 200, displayHeight/2 - 150);
-  Button exitBtn = new Button("exit", displayWidth/2 - 200, displayHeight/2);
-  playMenu.addButton(playBtn);
+  Button joinBtn = new Button("join", displayWidth/2 - 200, displayHeight/2 - 300);
+  Button createBtn = new Button("create", displayWidth/2 - 200, displayHeight / 2 - 150);
+  Button logoutBtn = new Button("logout", displayWidth/2 - 200, displayHeight/2);
+  Button exitBtn = new Button("exit", displayWidth/2 - 200, displayHeight/2 + 150);
+  playMenu.addButton(joinBtn);
+  playMenu.addButton(createBtn);
   playMenu.addButton(logoutBtn);
   playMenu.addButton(exitBtn);
   
@@ -190,6 +218,7 @@ void initializePlayMenu() {
             passwordField.setFocus(false);
           }
         }
+        break;
       case REGISTER:
         if (keyCode == TAB) {
           if (usernameField.isFocus()) {
@@ -201,6 +230,7 @@ void initializePlayMenu() {
             passwordField.setFocus(false);
           }
         }
+        break;
       default:
         break;
     }
@@ -232,6 +262,8 @@ void mousePressed() {
     case PLAY:
       checkPlayMenuButtons();
       break;
+    case ROOM_CREATION:
+      checkRoomCreationButtons();
     default:
       break;
   }
@@ -245,6 +277,27 @@ void toggleUserFields() {
   else passwordField.setVisible(true);
   usernameField.setText("");
   passwordField.setText("");
+}
+
+void checkRoomCreationButtons() {
+  for (Button b: roomCreationMenu.getButtons()) {
+    if (b.isClicked()) {
+      //println("Clicked button");
+      switch (b.getName()) {
+        case "create":
+          if (authCreateRoom()) {
+            state = State.ROOM;
+          }
+          
+          break;
+        case "exit":
+          lobbyNameField.setVisible(false);
+          state = State.PLAY;
+          break;
+      }
+      break;
+    }
+  }
 }
 
 void checkStartMenuButtons() {
@@ -274,7 +327,21 @@ void checkStartMenuButtons() {
     }
   }
 }
-        
+
+boolean authCreateRoom() {
+  String res = "";
+  String lobbyName = lobbyNameField.getText();
+  
+  try {
+    res = this.tcp.create_room(lobbyName);
+  } catch(Exception e) {
+    println("Failed room creation due to exception");
+  }
+  println(res);
+  return res.equals(success);
+  
+}
+
 boolean authLogin() {
   String res = "";
   String username = usernameField.getText();
@@ -299,7 +366,7 @@ boolean authRegister() {
     e.printStackTrace();
   }
 
-  return res.equals("success");
+  return res.equals(success);
 }
 
 void browseRooms() {
@@ -332,9 +399,15 @@ void checkPlayMenuButtons() {
   for (Button b: playMenu.getButtons()) {
     if (b.isClicked()) {
       switch(b.getName()) {
-        case "play":
-          state = State.GAME;
+        case "join":
+          state = State.LOBBY;
           break;
+        case "create":
+          state = State.ROOM_CREATION;
+          lobbyNameField.setVisible(true);
+          break;
+          
+          
         case "logout":
           //delay(10);
           state = State.MENU;
@@ -439,6 +512,7 @@ void drawMargins() { // Unused, they looked ugly and out of place
 }
 
 void drawLobby() {
+  roomLobby.drawLobby();
 }
 
 void loadingScreen() {
@@ -489,7 +563,13 @@ void draw() {
       }
       break;
     case LOBBY:
-      drawLobby();
+      roomLobby.drawLobby();
+      break;
+    case ROOM_CREATION:
+      roomCreationMenu.drawMenu();
+      break;
+    case ROOM:
+      break;
     case GAME:
       //drawMargins();
       //drawRings();

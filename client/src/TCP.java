@@ -13,6 +13,8 @@ public class TCP {
     private static final int CHANGE_NAME = 6;
     private static final int CHANGE_PASS = 7;
     private static final int REMOVE_ACCOUNT = 8;
+    private static final int CREATE_ROOM = 9;
+
     //Lock l = new ReentrantLock();
     private Socket socket;
     private BufferedReader in;
@@ -37,6 +39,11 @@ public class TCP {
     public String login_user(String username, String password) throws IOException {
         this.send(LOGIN_ACCOUNT, username + "@@@" + password);
         return this.receive();
+    }
+    
+    public String create_room(String room) throws IOException {
+      this.send(CREATE_ROOM, room);
+      return this.receive();
     }
 
     public String pingpong(int type) throws IOException {
