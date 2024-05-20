@@ -2,8 +2,20 @@ import java.io.*;
 import java.net.Socket;
 import java.util.List;
 import java.util.Objects;
+import java.Locks.*;
 
 public class TCP {
+    // TODO - Fix this before upload
+    private static final int NULL = 0;
+    private static final int CREATE_ACCOUNT = 1;
+    private static final int LOGIN_ACCOUNT = 2;
+    private static final int LOGOUT_ACCOUNT = 3;
+    private static final int JOIN_ROOM = 4;
+    private static final int LEAVE_ROOM = 5;
+    private static final int CHANGE_NAME = 6;
+    private static final int CHANGE_PASS = 7;
+    private static final int REMOVE_ACCOUNT = 8;
+    Lock l = new ReentrantLock();
     private Socket socket;
     private BufferedReader in;
     private PrintWriter out;
@@ -12,10 +24,20 @@ public class TCP {
         this.socket = new Socket(host, port);
         this.in = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
         this.out = new PrintWriter(this.socket.getOutputStream());
-    }
+    } 
 
     public String pingpong(int type, String args) throws IOException {
         this.send(type, args);
+        return this.receive();
+    }
+    
+    public String register_user(String username, String password) throws IOException {
+        this.send(CREATE_ACCOUNT, username + "@@@" + password);
+        return this.receive();
+    }
+
+    public String login_user(String username, String password) throws IOException {
+        this.send(LOGIN_ACCOUNT, username + "@@@" + password);
         return this.receive();
     }
 
@@ -24,12 +46,12 @@ public class TCP {
         return this.receive();
     }
 
-    void send(int type) throws IOException {
+    private void send(int type) throws IOException {
         out.println(type + "@@@");
         out.flush();
     }
 
-    void send(int type, String args) throws IOException {
+    private void send(int type, String args) throws IOException {
         String result = type + "@@@" + args;
         out.println(result);
         out.flush();
