@@ -2,8 +2,6 @@ import java.io.*;
 import java.net.Socket;
 import java.util.List;
 import java.util.Objects;
-import java.Locks.*;
-
 public class TCP {
     // TODO - Fix this before upload
     private static final int NULL = 0;
@@ -15,7 +13,7 @@ public class TCP {
     private static final int CHANGE_NAME = 6;
     private static final int CHANGE_PASS = 7;
     private static final int REMOVE_ACCOUNT = 8;
-    Lock l = new ReentrantLock();
+    //Lock l = new ReentrantLock();
     private Socket socket;
     private BufferedReader in;
     private PrintWriter out;
