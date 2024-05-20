@@ -38,6 +38,10 @@ lobby(Rooms) -> %% sala -> pid, sala elimina se caso nao haja jogadores dentro
                     NRooms = maps:put(Room, [], Rooms),
                     lobby(NRooms)
             end;
+        {browse_rooms, Pid} ->
+            send_message(Pid, "rooms:\n"),
+            lists:foreach(fun(Room) -> send_message(Pid, Room) end, maps:keys(Rooms)),
+            lobby(Rooms);
         {leave, Room, Pid} ->
             if Room == "main" ->
                 send_message(Pid, "Nao estas em nenhuma sala\n"),

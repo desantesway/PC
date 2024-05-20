@@ -10,7 +10,7 @@ accounts(Socket, Accs) ->
             Pid ! {full_save, Accs};
         {online, Pid} ->
             NewPids = maps:put(Pid, {"Anonymous", "main"}, Socket),
-            send_message(Pid, "Bem vindo\n"),
+            %send_message(Pid, "Bem vindo\n"),
             accounts(NewPids, Accs);
         {create_account, Username, Password, Pid, Off} ->
             case maps:is_key(Username, Accs) of
@@ -22,7 +22,7 @@ accounts(Socket, Accs) ->
                     {_, Lobby} = maps:get(Pid, Socket),
                     NewPids = maps:put(Pid, {Username, Lobby}, Socket),
                     Off ! {full_save, NAccs},
-                    send_message(Pid, "Conta criada\n"),
+                    send_message(Pid, "success\n"),
                     accounts(NewPids, NAccs)
             end;
         {login, Username, Password, Pid} ->
@@ -33,7 +33,7 @@ accounts(Socket, Accs) ->
                         {_, Lobby} = maps:get(Pid, Socket),
                         NewPids = maps:put(Pid, {Username, Lobby}, Socket),
                         change_state(Pid, {new_name, Username}),
-                        send_message(Pid, "Login feito\n"),
+                        send_message(Pid, "success\n"),
                         accounts(NewPids, Accs);
                     true ->
                         send_message(Pid, "Password incorreta\n"),
