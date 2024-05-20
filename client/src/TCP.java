@@ -14,6 +14,7 @@ public class TCP {
     private static final int CHANGE_PASS = 7;
     private static final int REMOVE_ACCOUNT = 8;
     private static final int CREATE_ROOM = 9;
+    private static final int LIST_ROOMS = 10;
 
     //Lock l = new ReentrantLock();
     private Socket socket;
