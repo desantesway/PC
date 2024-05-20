@@ -25,13 +25,14 @@ init(Sock)->
     receive
         {loaded, Data} ->
             io:fwrite("Loaded~p\n", [Data]),
-            register(accsProc, spawn(fun()->accounts:management(maps:new(), Data) end)),
+            register(accsProc, spawn(fun()->accounts:start(maps:new(), Data) end)),
+            register(lobbyProc, spawn(fun()->lobby:start() end)),
             spawn(fun() -> acceptor(Sock) end),
             init(Sock);
         {error, Reason} ->
             io:fwrite("Error loading accounts~p\n", [Reason]),
             init(Sock);
-        stop -> 
+        stop ->
             gen_tcp:close(Sock),
             accsProc ! {shutdown, offProc},
             offProc ! off
@@ -57,14 +58,18 @@ userAuth(Sock, Lobby, User) ->
             gen_tcp:send(Sock, Data),
             gen_tcp:send(Sock, "!-SVDONE-!\n"),
             userAuth(Sock, Lobby, User);
-        {accounts, Data} ->
+        {fpieces, Data} ->
             case Data of
                 {new_name, Name} ->
                     userAuth(Sock, Lobby, Name);
                 {new_room, Room} ->
                     userAuth(Sock, Room, User);
                 {start} ->
-                    userAuth(Sock, Lobby, User) % send this pid to play and wait for the game, this line is only to compile
+                    userAuth(Sock, Lobby, User); % send this pid to play and wait for the game, this line is only to compile
+                {leave} ->
+                    userAuth(Sock, Lobby, User); % leave room while waiting game, this line is only to compile
+                {wait} ->
+                    userAuth(Sock, Lobby, User) % start waiting game, this line is only to compile
             end;
         {tcp, _, Data} -> % falta criacao de salas e checkar se existe
             case re:split(binary_to_list(Data), "@@@") of
@@ -84,10 +89,10 @@ userAuth(Sock, Lobby, User) ->
                     accsProc ! {logout, self()},
                     userAuth(Sock, Lobby, User);
                 [<<?JOIN_ROOM>>, Room] ->
-                    accsProc ! {join, Room, self()},
+                    lobbyProc ! {join, User, Lobby, Room, self()},
                     userAuth(Sock, Lobby, User);
                 [<<?LEAVE_ROOM>>, _] ->
-                    accsProc ! {leave, self()},
+                    lobbyProc ! {leave, Lobby, self()},
                     userAuth(Sock, Lobby, User);
                 [<<?CHANGE_NAME>>, Name] ->
                     accsProc ! {change_name, 
@@ -102,12 +107,15 @@ userAuth(Sock, Lobby, User) ->
                 [<<?REMOVE_ACCOUNT>>, _] ->
                     accsProc ! {remove_account, self(), offProc},
                     userAuth(Sock, Lobby, User);
+                [<<?CREATE_ROOM>>, Room] ->
+                    lobbyProc ! {create_room, Room, self()},
+                    userAuth(Sock, Lobby, User);
                 _ ->
                     gen_tcp:send(Sock, "Error: Incorrect syntax.\n"),
                     gen_tcp:send(Sock, "!-SVDONE-!\n"),
                     userAuth(Sock, Lobby, User)
             end;
-        {tcp_closed, _} ->
+        {tcp_closed, _} -> %%remove lobby
             accsProc ! {offline, self()};
         {tcp_error, _, _} ->
             accsProc ! {offline, self()};

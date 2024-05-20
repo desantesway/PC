@@ -9,3 +9,4 @@
 -define(CHANGE_NAME, "6").
 -define(CHANGE_PASS, "7").
 -define(REMOVE_ACCOUNT, "8").
+-define(CREATE_ROOM, "9").
