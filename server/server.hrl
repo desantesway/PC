@@ -1,5 +1,6 @@
 -define(CHANGE_STATE(Pid, Data), Pid ! {fpieces, Data}).
 -define(SEND_MESSAGE(Socket, Message), Socket ! {broadcast, Message}).
+-define(SEND_MUL_MESSAGE(Socket, List), Socket ! {broadcast_list, List}).
 
 -define(CREATE_ACCOUNT, "1").
 -define(LOGIN_ACCOUNT, "2").

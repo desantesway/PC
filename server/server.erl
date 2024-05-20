@@ -50,12 +50,19 @@ acceptor(LSock) ->
             io:fwrite("Timeout");
         {error, _} ->
             io:fwrite("Error listening to socket")
-    end.
+        end.
 
-userAuth(Sock, User) -> % add level
-    receive
+    userAuth(Sock, User) -> % add level
+        receive
         {broadcast, Data} ->
             gen_tcp:send(Sock, Data),
+            gen_tcp:send(Sock, "!-SVDONE-!\n"),
+            userAuth(Sock, User);
+        {broadcast_list, Data} ->
+            lists:foreach(fun(Message) ->
+            io:fwrite("Message: ~p\n", [Message]),
+            gen_tcp:send(Sock, Message ++ "\n")
+            end, Data),
             gen_tcp:send(Sock, "!-SVDONE-!\n"),
             userAuth(Sock, User);
         {fpieces, Data} ->
@@ -126,7 +133,8 @@ userAuth(Sock, User) -> % add level
                         self()},
                     userAuth(Sock, User);
                 [<<?LIST_ROOMS>>, _] ->
-                    lobbyProc ! {list_rooms, self()},
+                    {_, Level, _} = User,
+                    lobbyProc ! {list_rooms, Level, self()},
                     userAuth(Sock, User);
                 _ ->
                     gen_tcp:send(Sock, "Error: Incorrect syntax.\n"),

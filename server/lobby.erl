@@ -5,9 +5,9 @@
 start() -> lobby(#{}).
 % falta implementar level, room => {level, Pids}, if players 2, countdown 5 seconds in another procc, start game, join room create a new process
 % falta implementar list rooms
+% send message list func
 % gestor de salas do jogo
 lobby(Rooms) ->
-    io:format("Rooms: ~p~n", [Rooms]),
     receive
         {join, User, Lobby, Room, Level, Pid} -> % num max de jogadores, ver level % jogador tenta entrar numa sala
             if Lobby == "main" ->
@@ -59,9 +59,17 @@ lobby(Rooms) ->
                     NRooms = maps:put(Room, {Level, []}, Rooms),
                     lobby(NRooms)
             end;
-        {list_rooms, Pid} -> % lista as salas ao jogador
-            ?SEND_MESSAGE(Pid, "rooms:\n"),
-            lists:foreach(fun(Room) -> ?SEND_MESSAGE(Pid, Room) end, maps:keys(Rooms)),
+        {list_rooms, Level, Pid} -> % lista as salas ao jogador
+            Ver = fun(Key, Value, Acc) -> 
+                {RLevel, _} = Value,
+                if Level == RLevel orelse Level == RLevel + 1 orelse Level == RLevel - 1 ->
+                    [Key | Acc];
+                true ->
+                    Acc
+                end
+            end,
+            RoomsList = maps:fold(Ver, [], Rooms),
+            ?SEND_MUL_MESSAGE(Pid, RoomsList),
             lobby(Rooms);
         {leave, Room, Pid} -> % jogador tenta sair da sala, se estiver numa
             if Room == "main" ->
