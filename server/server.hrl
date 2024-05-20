@@ -1,5 +1,5 @@
--record(user, {username, password}).
--record(message, {type, from, text}).
+-define(CHANGE_STATE(Pid, Data), Pid ! {fpieces, Data}).
+-define(SEND_MESSAGE(Socket, Message), Socket ! {broadcast, Message}).
 
 -define(CREATE_ACCOUNT, "1").
 -define(LOGIN_ACCOUNT, "2").
@@ -10,3 +10,4 @@
 -define(CHANGE_PASS, "7").
 -define(REMOVE_ACCOUNT, "8").
 -define(CREATE_ROOM, "9").
+-define(LIST_ROOMS, "10").
