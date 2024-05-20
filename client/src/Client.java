@@ -9,6 +9,7 @@ public class Client {
     private static final int CHANGE_NAME = 6;
     private static final int CHANGE_PASS = 7;
     private static final int REMOVE_ACCOUNT = 8;
+    private static final int CREATE_ROOM = 9;
 
     public static void main(String[] args) {
         try {
@@ -21,17 +22,23 @@ public class Client {
             System.out.println(tcp.pingpong(JOIN_ROOM, "1"));
             System.out.println(tcp.pingpong(CREATE_ACCOUNT, "buendiffdfa@@@buedafixe"));
             System.out.println(tcp.pingpong(CREATE_ACCOUNT, "buendia@@@akfgnj"));
-            System.out.println(tcp.pingpong(LOGIN_ACCOUNT, "buendia@@@buedafixe"));
+            System.out.println(tcp.pingpong(LOGIN_ACCOUNT, "ei@@@yo"));
             System.out.println(tcp.pingpong(JOIN_ROOM, "1"));
             System.out.println(tcp.pingpong(LEAVE_ROOM));
             System.out.println(tcp.pingpong(LOGOUT_ACCOUNT));
-            System.out.println(tcp.pingpong(JOIN_ROOM, "1"));*/
+            System.out.println(tcp.pingpong(JOIN_ROOM, "1"));
             System.out.println(tcp.pingpong(CHANGE_NAME, "arroz"));
             System.out.println(tcp.pingpong(CHANGE_PASS, "verycool"));
-            System.out.println(tcp.pingpong(LOGIN_ACCOUNT, "arrozado@@@cool"));
+            //System.out.println(tcp.pingpong(LOGIN_ACCOUNT, "ei@@@yo"));
             System.out.println(tcp.pingpong(CHANGE_NAME, "ei"));
-            System.out.println(tcp.pingpong(CHANGE_PASS, "yo"));
-
+            System.out.println(tcp.pingpong(CHANGE_PASS, "yo"));*/
+            System.out.println(tcp.pingpong(JOIN_ROOM, "1"));
+            System.out.println(tcp.pingpong(CREATE_ROOM, "1"));
+            System.out.println(tcp.pingpong(JOIN_ROOM, "1"));
+            System.out.println(tcp.pingpong(LOGIN_ACCOUNT, "ei@@@yo"));
+            System.out.println(tcp.pingpong(LEAVE_ROOM));
+            System.out.println(tcp.pingpong(JOIN_ROOM, "1"));
+            System.out.println(tcp.pingpong(LEAVE_ROOM));
         } catch (Exception e) {
             print(e.getMessage());
         }
