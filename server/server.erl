@@ -53,17 +53,45 @@ acceptor(LSock) ->
         end.
 
 userWait(Sock, User) ->
-    io:fwrite("Waiting ~p\n", [self()]),
     receive
+        {fpieces, Data} ->
+            case Data of
+                {new_name, Name} ->
+                    {_, Level, Lobby, XP} = User,
+                    userAuth(Sock, {Name, Level, Lobby, XP});
+                {new_room, Room} ->
+                    if Room == "main" ->
+                        userAuth(Sock, User);
+                    true ->
+                        {UserN, Level, _, XP} = User,
+                        userAuth(Sock, {UserN, Level, Room, XP})
+                    end;
+                {countdown_blocked} ->
+                    userAuth(Sock, User)
+            end;
+        {tcp, _, Data} ->
+            case re:split(binary_to_list(Data), "@@@") of
+                [<<?LEAVE_ROOM>>, _] ->
+                    {_, _, Lobby, _} = User,
+                    lobbyProc ! {leave, Lobby, self()},
+                    userAuth(Sock, User)
+            end;
         {start_game, Game} ->
-            io:fwrite("Game started\n"),
             game_sim:start(Game, Sock, User);
         {broadcast_list, Data} ->
             ?SEND_BROADCAST_LIST(Sock, Data),
             userWait(Sock, User);
         {broadcast, Data} ->
             ?SEND_BROADCAST(Sock, Data),
-            userWait(Sock, User)
+            userWait(Sock, User);
+        {tcp_closed, _} ->
+            {_, _, Lobby, _} = User,
+            accsProc ! {offline, self()},
+            lobbyProc ! {offline, Lobby, self()};
+        {tcp_error, _, _} ->
+            {_, _, Lobby, _} = User,
+            accsProc ! {offline, self()},
+            lobbyProc ! {offline, Lobby, self()}
     end.
 
 userAuth(Sock, User) ->
@@ -84,17 +112,18 @@ userAuth(Sock, User) ->
                 userAuth(Sock, {UserN, Level, Room, XP});
             {countdown, Room} ->
                 {_, _, Lobby, _} = User,
-                io:fwrite("Countdown ~p by ~p\n", [Room, self()]),
-                Game = spawn(fun() -> game_room:start() end),
-                spawn(fun() -> countdown(Lobby, Game) end),
+                Game = spawn(fun() -> game_room:start(Room) end),
+                CountProc = spawn(fun() -> countdown(Lobby, Game) end),
                 self() ! {fpieces, {wait}}, 
-                userAuth(Sock, User); % starts a process that counts 5 sec, for x room, when done sends to lobby, where notifies all players in x room, this line is only to compile
+                lobbyProc ! {countdown_started, CountProc, Lobby},
+                userAuth(Sock, User);
             {wait} ->
-                io:fwrite("Waiting for game ~p\n", [User]),
-                {UserN, Level, _, XP} = User,
-                userWait(Sock, {UserN, Level, XP}) % change format
+                userWait(Sock, User);
+            _ -> 
+                io:fwrite("ERROR ~p ~p\n", [self(), Data]),
+                userAuth(Sock, User)
         end;
-    {tcp, _, Data} -> % falta criacao de salas e checkar se existe
+    {tcp, _, Data} ->
         case re:split(binary_to_list(Data), "@@@") of
             [<<?CREATE_ACCOUNT>>, UserName, Password] ->
                 accsProc ! {create_account, 
@@ -138,8 +167,9 @@ userAuth(Sock, User) ->
                 accsProc ! {remove_account, self(), offProc},
                 userAuth(Sock, User);
             [<<?CREATE_ROOM>>, Room] ->
-                {_, Level, _, _} = User,
+                {UserN, Level, _, _} = User,
                 lobbyProc ! {create_room, 
+                    UserN,
                     string:trim(binary_to_list(Room), trailing), 
                     Level,
                     self()},
@@ -153,7 +183,7 @@ userAuth(Sock, User) ->
                 gen_tcp:send(Sock, "!-SVDONE-!\n"),
                 userAuth(Sock, User)
         end;
-    {tcp_closed, _} -> %%remove lobby
+    {tcp_closed, _} -> 
         {_, _, Lobby, _} = User,
         accsProc ! {offline, self()},
         lobbyProc ! {offline, Lobby, self()};
