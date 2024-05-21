@@ -3,13 +3,20 @@
 -export[start/0].
 
 start() -> lobby(#{}).
-% falta implementar level, room => {level, Pids}, if players 2, countdown 5 seconds in another procc, start game, join room create a new process
-% falta implementar list rooms
-% send message list func
 % gestor de salas do jogo
 lobby(Rooms) ->
     receive
-        {join, User, Lobby, Room, Level, Pid} -> % num max de jogadores, ver level % jogador tenta entrar numa sala
+        {countdown_started, Room}  ->
+            io:fwrite("Countdown\n"),
+            {_, Pids} = maps:get(Room, Rooms),
+            lists:foreach(fun(Pid) -> ?SEND_MESSAGE(Pid, "countdown_started\n") end, Pids),
+            lobby(Rooms);
+        {start_game, Room, Game}  ->
+            {_, Pids} = maps:get(Room, Rooms),
+            lists:foreach(fun(Pid) -> Pid ! {start_game, Game}, ?SEND_MESSAGE(Pid, "enter_game\n"), ?CHANGE_STATE(Pid, {send_pid}) end, Pids),
+            maps:remove(Room, Rooms),
+            lobby(Rooms);
+        {join, User, Lobby, Room, Level, Pid} -> % jogador tenta entrar numa sala
             if Lobby == "main" ->
                 if User == "Anonymous" ->
                     ?SEND_MESSAGE(Pid, "Precisas de fazer login\n"),
@@ -20,28 +27,13 @@ lobby(Rooms) ->
                             {RLevel, Pids} = maps:get(Room, Rooms),
                             if Level == RLevel orelse Level == RLevel + 1 orelse Level == RLevel - 1 -> % nivel de dificuldade
                                 if length(Pids) < 4 -> % maximo de jogadores
-                                    %?SEND_MESSAGE(Pid, "success\n"),
-                                    % Create a formatted string of PIDs without an extra comma at the end
-                                    %PidsList = lists:flatten([io_lib:format("~p,", [NUM]) || NUM <- Pids]),
-                                    % Remove the last comma
-                                    %FormattedPids = case PidsList of
-                                    %    [] -> "";
-                                    %    _ -> string:substr(PidsList, 1, length(PidsList) - 1)
-                                    %end,
-                                    %?SEND_MESSAGE(Pid, FormattedPids ++ "\n"), % list of players in the room
-                                    
-                                    % Change this to send_mul_msg
-                                    ?SEND_MUL_MESSAGE(Pid, Pids), % list of players in the room
-
                                     NRooms = maps:put(Room, {RLevel, [Pid | Pids]} , Rooms),
                                     ?CHANGE_STATE(Pid, {new_room, Room}),
-                                    ?CHANGE_STATE(Pid, {wait}), %% start game
                                     ?SEND_MESSAGE(Pid, "success\n"),
-                                    io:format("Pids: ~p~n", [(length(Pids) + 1) == 2]),
-                                    if (length(Pids) + 1) == 2 ->
-                                        ?CHANGE_STATE(Pid, {countdown}); %% start countdown
+                                    if (length(Pids) + 1) == 2 -> %% start countdown
+                                        ?CHANGE_STATE(Pid, {countdown, Room}); 
                                     true ->
-                                        ok 
+                                        ?CHANGE_STATE(Pid, {wait}) % espera para comecar o jogo
                                     end,
                                     lobby(NRooms);
                                 true ->

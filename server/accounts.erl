@@ -10,7 +10,6 @@ accounts(Socket, Accs) ->
             Pid ! {full_save, Accs};
         {online, Pid} ->
             NewPids = maps:put(Pid, {"Anonymous", "main"}, Socket),
-            %?SEND_MESSAGE(Pid, "Bem vindo\n"),
             accounts(NewPids, Accs);
         {create_account, Username, Password, Pid, Off} ->
             case maps:is_key(Username, Accs) of
