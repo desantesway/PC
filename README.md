@@ -1,11 +1,9 @@
 # PC
 
 > TODO
-- lobby_manager (erlang) - pedro
-- lobby chat (?) - pedro
+- chat if player died or after the game - pedro
+- player level system & save - pedro
 - game_sim (erlang) - costinha
-- player level system & save
-- semaforo para entrar num jogo
 
 > Client TODO:
 - Room menu gui
