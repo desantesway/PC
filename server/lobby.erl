@@ -20,16 +20,19 @@ lobby(Rooms) ->
                             {RLevel, Pids} = maps:get(Room, Rooms),
                             if Level == RLevel orelse Level == RLevel + 1 orelse Level == RLevel - 1 -> % nivel de dificuldade
                                 if length(Pids) < 4 -> % maximo de jogadores
-                                     %?SEND_MESSAGE(Pid, "success\n"),
+                                    %?SEND_MESSAGE(Pid, "success\n"),
                                     % Create a formatted string of PIDs without an extra comma at the end
-                                    PidsList = lists:flatten([io_lib:format("~p,", [NUM]) || NUM <- Pids]),
+                                    %PidsList = lists:flatten([io_lib:format("~p,", [NUM]) || NUM <- Pids]),
                                     % Remove the last comma
-                                    FormattedPids = case PidsList of
-                                        [] -> "";
-                                        _ -> string:substr(PidsList, 1, length(PidsList) - 1)
-                                    end,
-                                    ?SEND_MESSAGE(Pid, FormattedPids ++ "\n"), % list of players in the room
-                                
+                                    %FormattedPids = case PidsList of
+                                    %    [] -> "";
+                                    %    _ -> string:substr(PidsList, 1, length(PidsList) - 1)
+                                    %end,
+                                    %?SEND_MESSAGE(Pid, FormattedPids ++ "\n"), % list of players in the room
+                                    
+                                    % Change this to send_mul_msg
+                                    ?SEND_MUL_MESSAGE(Pid, Pids), % list of players in the room
+
                                     NRooms = maps:put(Room, {RLevel, [Pid | Pids]} , Rooms),
                                     ?CHANGE_STATE(Pid, {new_room, Room}),
                                     ?CHANGE_STATE(Pid, {wait}), %% start game
