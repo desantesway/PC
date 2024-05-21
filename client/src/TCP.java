@@ -46,12 +46,17 @@ public class TCP {
       this.send(CREATE_ROOM, room);
       return this.receive();
     }
+    
+    public String join_room(String room) throws IOException {
+      this.send(JOIN_ROOM, room);
+      return this.receive();
+    }
 
     public String pingpong(int type) throws IOException {
         this.send(type);
         return this.receive();
     }
-
+    
     private void send(int type) throws IOException {
         out.println(type + "@@@");
         out.flush();

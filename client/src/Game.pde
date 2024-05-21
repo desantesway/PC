@@ -16,20 +16,6 @@ enum State {
 }
 
 
-// Change this lol
-private static final int NULL = 0;
-private static final int CREATE_ACCOUNT = 1;
-private static final int LOGIN_ACCOUNT = 2;
-private static final int LOGOUT_ACCOUNT = 3;
-private static final int JOIN_ROOM = 4;
-private static final int LEAVE_ROOM = 5;
-private static final int CHANGE_NAME = 6;
-private static final int CHANGE_PASS = 7;
-private static final int REMOVE_ACCOUNT = 8;
-private static final int CREATE_ROOM = 9;
-// end change this
-
-
 
 TCP tcp;
 State state;
@@ -264,6 +250,11 @@ void mousePressed() {
       break;
     case ROOM_CREATION:
       checkRoomCreationButtons();
+      break;
+    case LOBBY:
+      roomLobby.getRoomByLocation();
+      checkLobbyButtons();
+      break;
     default:
       break;
   }
@@ -286,7 +277,8 @@ void checkRoomCreationButtons() {
       switch (b.getName()) {
         case "create":
           if (authCreateRoom()) {
-            state = State.ROOM;
+            state = State.LOBBY;
+            roomLobby.updateLobby(lobbyNameField.setVisible(false).getText());
           }
           
           break;
@@ -299,6 +291,27 @@ void checkRoomCreationButtons() {
     }
   }
 }
+
+void checkLobbyButtons() {
+  for (Button b: roomLobby.getButtons()) {
+    if (b.isClicked()) {
+      switch(b.getName()) {
+        case "join":
+          String[] res = authJoinRoom();
+          for (int i = 0; i < res.length; i++) {
+            println(res[i]);   
+          }
+          break;
+        case "exit":
+          state = State.PLAY;
+          break;
+        default:
+          break;
+      }
+    }
+  }
+}
+
 
 void checkStartMenuButtons() {
   for (Button b: startMenu.getButtons()) {
@@ -328,6 +341,7 @@ void checkStartMenuButtons() {
   }
 }
 
+
 boolean authCreateRoom() {
   String res = "";
   String lobbyName = lobbyNameField.getText();
@@ -340,6 +354,35 @@ boolean authCreateRoom() {
   println(res);
   return res.equals(success);
   
+}
+
+String[] authJoinRoom() {
+  String res = "";
+  String room = roomLobby.getSelectedRoom();
+  if (room.equals("")) {
+    println("No room selected.");
+    return new String[0];
+  }
+  else {
+    try {
+      res = this.tcp.join_room(room);
+    } catch (Exception e) {
+        System.out.println("Failed message.");
+        e.printStackTrace();
+        return new String[0]; // Return an empty array on failure
+    }
+    
+    if (res.isEmpty()) {
+        // Return an empty array if the response is empty
+        return new String[0];
+    } else if (res.contains(",")) {
+        // If the response contains commas, assume it's a list of PIDs
+        return res.split(",");
+    } else {
+        // If there's no comma, treat it as a single PID response
+        return new String[]{res};
+    }
+  }
 }
 
 boolean authLogin() {
@@ -356,22 +399,19 @@ boolean authLogin() {
 }
 
 boolean authRegister() {
-  String res = "";
   String username = usernameField.getText();
   String password = passwordField.getText();
   try {
-    res = this.tcp.register_user(username,password);
+    String res = this.tcp.register_user(username,password);
   }  catch(Exception e) {
     println("Failed.");
     e.printStackTrace();
+    return false;
   }
-
-  return res.equals(success);
+  return authLogin(); // Immediately login after registration
 }
 
-void browseRooms() {
 
-}
 
 void checkLoginMenuButtons() {
   for (Button b: loginMenu.getButtons()) {
@@ -511,9 +551,7 @@ void drawMargins() { // Unused, they looked ugly and out of place
   line(0,displayHeight, displayWidth, displayHeight); // horizontal bottom line
 }
 
-void drawLobby() {
-  roomLobby.drawLobby();
-}
+
 
 void loadingScreen() {
        textFont(campus);

@@ -1,0 +1,4 @@
+client/client.iml
+client/src/data/*
+server/*.beam
+server/*.bin
