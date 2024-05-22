@@ -15,6 +15,10 @@ public class TCP {
     private static final int REMOVE_ACCOUNT = 8;
     private static final int CREATE_ROOM = 9;
     private static final int LIST_ROOMS = 10;
+    private static final int UP_KEY = 11;
+    private static final int RIGHT_KEY = 12;
+    private static final int LEFT_KEY = 13;
+    private static final int CHAT_MESSAGE = 14;
 
     //Lock l = new ReentrantLock();
     private Socket socket;
@@ -62,8 +66,9 @@ public class TCP {
       StringBuilder line = new StringBuilder();
       String current = in.readLine();
       while (!Objects.equals(current, "!-SVDONE-!")){
-        line.append(current);
-        line.append('@');
+        if (current != null){
+            line.append(current);
+        }
         current = in.readLine();
       }
       System.out.println(line.toString());
