@@ -1,7 +1,6 @@
 # PC
 
 > TODO
-- listagem por nivel, vitorias consecutivas - pedro
 - game_sim (erlang) - costinha
 
 > Client TODO:
