@@ -3,28 +3,46 @@
 -export([start/1]).
 
 start(Name) -> 
-    % cria um ticket
-    gameSim(Name, #{}, false).
+    % cria um ticker
+    GameProc = self(),
+    Chat = spawn(fun() -> gameChat(GameProc, maps:new()) end),
+    gameSim(Chat, Name, #{}, false).
 
-gameSim(Name, Pids, Countdown) -> %pid => {alive?, username} IMPLEMENTAR COUNTDOWN
+gameChat(GameProc, OnChat) ->
+    receive
+        {new_message, Pid, Message} -> % sends message to all players
+            ToSend = "!-CHAT-!@@@" ++ maps:get(Pid, OnChat) ++ "@@@sent:@@@" ++ Message ++ "\n",
+            lists:foreach(fun(Key) -> ?SEND_MESSAGE(Key, ToSend) end, maps:keys(OnChat)),
+            gameChat(GameProc, OnChat);
+        {new_pid, Pid, Username} -> % adds a new pid to the chat
+            gameChat(GameProc, maps:put(Pid, Username, OnChat))
+    end.
+
+gameSim(Chat, Name, Pids, Countdown) -> %pid => {alive?, username} IMPLEMENTAR COUNTDOWN
     io:format("Game ~p\n", [Pids]),
     receive
         {ticket_request} -> % request and sends info of the current to all players
-            gameSim(Name, Pids, Countdown);
+            gameSim(Chat, Name, Pids, Countdown);
         {countdown_started} ->
             lists:foreach(fun(Key) -> % sends to all players that last player countdown started
                 ?SEND_MESSAGE(Key, "game_countdown_started\n")
             end, maps:keys(Pids)),
-            gameSim(Name, Pids, true);
+            gameSim(Chat, Name, Pids, true);
         {countdown_ended} ->
             lists:foreach(fun(Key) -> % sends to all players that last player countdown ended
                 ?SEND_MESSAGE(Key, "game_countdown_ended\n")
             end, maps:keys(Pids)),
-            gameSim(Name, Pids, false);
+            gameSim(Chat, Name, Pids, false);
         {new_pid, Username, Pid} -> % add a new pid to the game
-            gameSim(Name, maps:put(Pid, {true, Username}, Pids), Countdown);
+            Chat ! {new_pid, Pid, Username}, %% !!!!!!!!!!!!!!!!!!THIS LINE IS NOT SUPPOSED TO BE HERE, JUST FOR TESTING
+            gameSim(Chat, Name, maps:put(Pid, {true, Username}, Pids), Countdown);
+        {send_message, Pid, Message} -> % sends message to all players
+            Chat ! {new_message, Pid, Message},
+            gameSim(Chat, Name, Pids, Countdown);
         {died, Pid} ->
-            io:format("Died ~p\n", [Pid]),
+            {_, Username} = maps:get(Pid, Pids),
+            %Chat ! {new_pid, Pid, Username}, %this is the real line
+            Chat ! {new_message, Pid, Username ++ " died\n"},
             NewAlives = lists:foldl( % gets the alive pids and 
                 fun(Key, AccAlives) ->
                     case maps:get(Key, Pids) of
@@ -44,17 +62,17 @@ gameSim(Name, Pids, Countdown) -> %pid => {alive?, username} IMPLEMENTAR COUNTDO
                 true -> % start countdown on another proccess
                     GameProc = self(),
                     spawn(fun() -> countdown(GameProc) end),
-                    gameSim(Name, NewPids, true);
+                    gameSim(Chat, Name, NewPids, true);
                 false ->
                     case length(NewAlives) == 1 of
                         true ->
                             case NewAlives of
                                 [LastAlive] -> % last alive wins
                                     self() ! {start_end_game, LastAlive},
-                                    gameSim(Name, NewPids, Countdown)
+                                    gameSim(Chat, Name, NewPids, Countdown)
                             end;
                         false ->
-                            gameSim(Name, NewPids, Countdown)
+                            gameSim(Chat, Name, NewPids, Countdown)
                     end
             end;
         {start_end_game, LastAlive} -> 
@@ -64,7 +82,7 @@ gameSim(Name, Pids, Countdown) -> %pid => {alive?, username} IMPLEMENTAR COUNTDO
                     ?CHANGE_STATE(Pid, {lost})
                 end, maps:keys(Pids)),
                 self() ! {end_game},
-                gameSim(Name, Pids, Countdown);
+                gameSim(Chat, Name, Pids, Countdown);
             true -> % todos menos lastalive perdem
                 lists:foreach(fun(Pid) -> 
                     if Pid == LastAlive -> 
@@ -76,7 +94,7 @@ gameSim(Name, Pids, Countdown) -> %pid => {alive?, username} IMPLEMENTAR COUNTDO
                     end
                 end, maps:keys(Pids)),
                 self() ! {end_game},
-                gameSim(Name, Pids, Countdown)
+                gameSim(Chat, Name, Pids, Countdown)
             end;
         {end_game} ->
             lists:foreach(fun(Pid) -> 
@@ -92,7 +110,7 @@ gameSim(Name, Pids, Countdown) -> %pid => {alive?, username} IMPLEMENTAR COUNTDO
             end, maps:keys(NewPids));
         Data ->
             io:format("Unexpected data ~p\n", [Data]),
-            gameSim(Name, Pids, Countdown)
+            gameSim(Chat, Name, Pids, Countdown)
     end.
 
 countdown(GameProc)-> 

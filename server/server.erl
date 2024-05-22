@@ -68,7 +68,8 @@ userWait(Sock, User) ->
                         userAuth(Sock, {UserN, Level, Room, XP})
                     end;
                 {unexpected_leave} ->
-                    userWait(Sock, User)
+                    ?SEND_MESSAGE(Sock, "unexpected_leave.\n"),
+                    userAuth(Sock, User)
             end;
         {tcp, _, Data} ->
             case re:split(binary_to_list(Data), "@@@") of
@@ -99,6 +100,7 @@ userWait(Sock, User) ->
     end.
 
 userAuth(Sock, User) ->
+    io:fwrite("User ~p auth~n", [User]),
     receive
     {broadcast, Data} ->
         ?SEND_BROADCAST(Sock, Data),

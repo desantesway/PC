@@ -8,18 +8,29 @@ lobby(Rooms) -> % only logged can create room CHANGE
     io:format("Rooms ~p~n", [Rooms]),
     receive
         {countdown_started, CountProc, Room}  ->
-            {_, Lvl, Pids} = maps:get(Room, Rooms),
-            NRooms = maps:put(Room, {CountProc, Lvl, Pids}, Rooms),
-            lists:foreach(fun(Pid) -> ?SEND_MESSAGE(Pid, "countdown_started\n") end, Pids),
-            lobby(NRooms);
-        {start_game, Room, Game}  ->
-            {CountProc, _, Pids} = maps:get(Room, Rooms),
-            if CountProc == self() ->
-                continue;
-            true ->
-                lists:foreach(fun(Pid) -> Pid ! {start_game, Game}, ?SEND_MESSAGE(Pid, "enter_game\n") end, Pids)
-            end,
+            case maps:is_key(Room, Rooms) of
+                true -> 
+                    {_, Lvl, Pids} = maps:get(Room, Rooms),
+                    NRooms = maps:put(Room, {CountProc, Lvl, Pids}, Rooms),
+                    lists:foreach(fun(Pid) -> ?SEND_MESSAGE(Pid, "countdown_started\n") end, Pids),
+                    lobby(NRooms);
+                false -> 
+                    continue
+                end, 
             lobby(Rooms);
+        {start_game, Room, Game}  ->
+                case maps:is_key(Room, Rooms) of
+                    true ->
+                        {CountProc, _, Pids} = maps:get(Room, Rooms),
+                        if CountProc == self() ->
+                            continue;
+                        true ->
+                            lists:foreach(fun(Pid) -> Pid ! {start_game, Game}, ?SEND_MESSAGE(Pid, "enter_game\n") end, Pids)
+                        end,
+                        lobby(Rooms);
+                    false ->
+                        lobby(Rooms)
+                end;
         {join, User, Lobby, Room, Level, Pid} -> % jogador tenta entrar numa sala
             if Lobby == "main" ->
                 if User == "Anonymous" ->
@@ -89,38 +100,46 @@ lobby(Rooms) -> % only logged can create room CHANGE
                 ?SEND_MESSAGE(Pid, "Nao estas em nenhuma sala\n"),
                 lobby(Rooms);
             true->
-                {CountProc, Level, Pids} = maps:get(Room, Rooms),
-                if length(Pids) =< 1 ->
-                    NRooms = maps:remove(Room, Rooms),
-                    ?SEND_MESSAGE(Pid, "success\n"),
-                    ?CHANGE_STATE(Pid, {new_room, "main"}),
-                    lobby(NRooms);
-                true ->
-                    NRooms = maps:put(Room, {CountProc, Level, lists:delete(Pid, Pids)}, Rooms),
-                    ?SEND_MESSAGE(Pid, "success\n"),
-                    ?CHANGE_STATE(Pid, {new_room, "main"}),
-                    lobby(NRooms)
+                case maps:is_key(Room, Rooms) of
+                    true ->
+                        {CountProc, Level, Pids} = maps:get(Room, Rooms),
+                        if length(Pids) =< 2 ->
+                            NRooms = maps:remove(Room, Rooms),
+                            ?SEND_MESSAGE(Pid, "success\n"),
+                            ?CHANGE_STATE(Pid, {new_room, "main"}),
+                            lobby(NRooms);
+                        true ->
+                            NRooms = maps:put(Room, {CountProc, Level, lists:delete(Pid, Pids)}, Rooms),
+                            ?SEND_MESSAGE(Pid, "success\n"),
+                            ?CHANGE_STATE(Pid, {new_room, "main"}),
+                            lobby(NRooms)
+                        end;
+                    false ->
+                        lobby(Rooms)
                 end
             end;
         {offline, Room, Pid} -> % jogador e eliminado das salas caso saia inesperadamente
             if Room == "main" ->
                 lobby(Rooms);
             true->
-                {CountProc, RLevel, Pids} = maps:get(Room, Rooms),
-                if CountProc == self() ->
-                    self() ! {leave, Room, Pid},
-                    lobby(Rooms);
-                true ->
-                    if length(Pids) =< 2 -> %stop countdown/ignore i
-                        NRooms = maps:put(Room, {self(), RLevel, Pids}, Rooms),
-                        lists:foreach(fun(PPid) -> ?CHANGE_STATE(PPid, {unexpected_leave}), ?SEND_MESSAGE(Pid, "unexpected_leave\n") end, Pids),
-                        self() ! {leave, Room, Pid},
-                        lobby(NRooms);
+                case maps:is_key(Room, Rooms) of
                     true ->
-                        continue
-                    end
-                end,
-                self() ! {leave, Room, Pid},
-                lobby(Rooms)
+                        {CountProc, RLevel, Pids} = maps:get(Room, Rooms),
+                        if CountProc == self() ->
+                            self() ! {leave, Room, Pid},
+                            lobby(Rooms);
+                        true ->
+                            if length(Pids) =< 2 -> %stop countdown/ignore i
+                                NRooms = maps:put(Room, {self(), RLevel, Pids}, Rooms),
+                                lists:foreach(fun(PPid) -> ?CHANGE_STATE(PPid, {unexpected_leave}), ?SEND_MESSAGE(Pid, "unexpected_leave\n") end, Pids),
+                                self() ! {leave, Room, Pid},
+                                lobby(NRooms);
+                            true ->
+                                continue
+                            end
+                        end;
+                    false ->
+                        lobby(Rooms)
+                end
             end
     end.

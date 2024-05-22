@@ -7,11 +7,13 @@ start(GameProc, Sock, UserAuth) -> %User = {{Name, Level, Lobby, XP}, BoostLeft,
     {Name, _, _, _} = UserAuth,
     GameProc ! {new_pid, Name, self()},
     Keys = #{ % fazer telicas default aqui
-        "A" => false
+        "UP" => false,
+        "LEFT" => false,
+        "RIGHT" => false
         },
     gamePlayer(GameProc, Sock, {UserAuth, 100, {0, 0, 0}, Keys}). 
 
-gamePlayer(GameProc, Sock, User) -> % !!!fazer descer de nivel
+gamePlayer(GameProc, Sock, User) ->
     receive
         {broadcast, Data} ->
             ?SEND_BROADCAST(Sock, Data),
@@ -35,7 +37,7 @@ gamePlayer(GameProc, Sock, User) -> % !!!fazer descer de nivel
                     true ->
                         NXP = XP + 1
                     end,
-                    if Lvl == NXP -> % implmentar reset quando sobe de nivel (?)
+                    if Lvl == NXP ->
                         NLvl = Lvl + 1;
                     true ->
                         NLvl = Lvl
@@ -68,9 +70,14 @@ gamePlayer(GameProc, Sock, User) -> % !!!fazer descer de nivel
             end;
         {tcp, _, Data} ->
             case re:split(binary_to_list(Data), "@@@") of
+                [<<?CHAT_MESSAGE>>, Message] -> % sends a chat message
+                    GameProc ! {send_message, 
+                        self(), 
+                        string:trim(binary_to_list(Message), trailing)},
+                    gamePlayer(GameProc, Sock, User);
                 [<<?UP_KEY>>, _] -> % sum about new button pressed (?)
                     % as if the calculations made the player die;
-                    GameProc ! {died, self()}, % this is supposed to be handled by the game_sim, not the player
+                    GameProc ! {died, self()}, % !!!! ONLY FOR TESTING DEATH/XP this is supposed to be handled by the game_sim, not the player
                     gamePlayer(GameProc, Sock, User);
                 [<<?RIGHT_KEY>>, _] -> % sum about new button pressed (?)
                     gamePlayer(GameProc, Sock, User);

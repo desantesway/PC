@@ -27,3 +27,4 @@
 -define(UP_KEY, "11").
 -define(RIGHT_KEY, "12").
 -define(LEFT_KEY, "13").
+-define(CHAT_MESSAGE, "14").

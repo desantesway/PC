@@ -107,18 +107,16 @@ accounts(SPids, Accs, Lvl) ->
                 ?SEND_MESSAGE(Pid, "Conta Removida\n"),
                 accounts(NSocket, NAccs, Lvl)
             end;
-        {update_lvl, Pid, Lvl, XP} ->
-            io:format("Updating lvl ~p ~p ~p~n", [Pid, Lvl, XP]),
-            ?CHANGE_STATE(Pid, {new_lvl, Lvl}),
-            io:format("U5~n"),
-            ?CHANGE_STATE(Pid, {new_xp, XP}),
-            io:format("U4~n"),
-            NLvl = maps:put(maps:get(Pid, SPids), {Lvl, XP}, Lvl),
-            io:format("U3~n"),
+        {update_lvl, Pid, NewLvl, NewXP} ->
+            ?CHANGE_STATE(Pid, {new_lvl, NewLvl}),
+            ?CHANGE_STATE(Pid, {new_xp, NewXP}),
+            NLvl = maps:put(maps:get(Pid, SPids), {NewLvl, NewXP}, Lvl),
             self() ! {save_lvl, NLvl},
-            io:format("U2~n"),
             accounts(SPids, Accs, NLvl);
         {offline, Pid} ->
             NewPids = maps:remove(Pid, SPids),
-            accounts(NewPids, Accs, Lvl)
+            accounts(NewPids, Accs, Lvl);
+        Other ->
+            io:fwrite("accounts.erl ERROR ~p ~p\n", [self(), Other]),
+            accounts(SPids, Accs, Lvl)
     end.
