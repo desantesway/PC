@@ -60,7 +60,7 @@ gamePlayer(GameProc, Sock, User) -> % !!!fazer descer de nivel
                     gamePlayer(GameProc, Sock, {{Name, NLvl, Lobby, NXP}, Boost, Pos, But});
                 {end_game} ->
                     {{Name, Level, _, XP}, _, _, _} = User,
-                    accProc ! {update_lvl, self(), Level, XP},
+                    accsProc ! {update_lvl, self(), Level, XP},
                     String = "lvl@@@" ++ erlang:integer_to_list(Level) ++ "@@@XP@@@" ++ erlang:integer_to_list(XP) ++ "\n",
                     io:fwrite("Sending ~p\n", [String]),
                     ?SEND_MESSAGE(self(), String),

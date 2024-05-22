@@ -53,6 +53,7 @@ acceptor(LSock) ->
         end.
 
 userWait(Sock, User) ->
+    io:fwrite("User ~p waiting~n", [User]),
     receive
         {fpieces, Data} ->
             case Data of
@@ -67,13 +68,13 @@ userWait(Sock, User) ->
                         userAuth(Sock, {UserN, Level, Room, XP})
                     end;
                 {unexpected_leave} ->
-                    userAuth(Sock, User)
+                    userWait(Sock, User)
             end;
         {tcp, _, Data} ->
             case re:split(binary_to_list(Data), "@@@") of
                 [<<?LEAVE_ROOM>>, _] ->
                     {_, _, Lobby, _} = User,
-                    lobbyProc ! {leave, Lobby, self()},
+                    lobbyProc ! {offline,  Lobby, self()},
                     userAuth(Sock, User);
                 _ ->
                     ?SEND_MESSAGE(Sock, "Error: Incorrect syntax.\n"),
@@ -90,11 +91,11 @@ userWait(Sock, User) ->
         {tcp_closed, _} ->
             {_, _, Lobby, _} = User,
             accsProc ! {offline, self()},
-            lobbyProc ! {offline, Lobby, self()};
+            lobbyProc ! {offline_countdown, Lobby, self()};
         {tcp_error, _, _} ->
             {_, _, Lobby, _} = User,
             accsProc ! {offline, self()},
-            lobbyProc ! {offline, Lobby, self()}
+            lobbyProc ! {offline_countdown, Lobby, self()}
     end.
 
 userAuth(Sock, User) ->

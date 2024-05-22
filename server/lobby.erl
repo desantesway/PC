@@ -5,6 +5,7 @@
 start() -> lobby(#{}).
 % gestor de salas do jogo
 lobby(Rooms) -> % only logged can create room CHANGE
+    io:format("Rooms ~p~n", [Rooms]),
     receive
         {countdown_started, CountProc, Room}  ->
             {_, Lvl, Pids} = maps:get(Room, Rooms),
@@ -103,7 +104,6 @@ lobby(Rooms) -> % only logged can create room CHANGE
             end;
         {offline, Room, Pid} -> % jogador e eliminado das salas caso saia inesperadamente
             if Room == "main" ->
-                ?SEND_MESSAGE(Pid, "Nao estas em nenhuma sala\n"),
                 lobby(Rooms);
             true->
                 {CountProc, RLevel, Pids} = maps:get(Room, Rooms),
