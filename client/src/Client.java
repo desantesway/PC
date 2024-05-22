@@ -14,6 +14,8 @@ public class Client {
     private static final int RIGHT_KEY = 12;
     private static final int LEFT_KEY = 13;
     private static final int CHAT_MESSAGE = 14;
+    private static final int LEAVE_CHAT = 15;
+    private static final int RANKING = 16;
 
     public static void main(String[] args) {
         try {
