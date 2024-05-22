@@ -24,7 +24,8 @@ Lobby roomLobby;
 float sun_radius = 135f;
 ArrayList<PShape> rings = new ArrayList<PShape>();
 Animation sun;
-Player player;
+Player me; // My player :)
+ArrayList<Player> players; // Other players
 HashMap<Character, Boolean> keyMap = new HashMap<>();
 PFont nightcore;
 ArrayList<Planet> planets = new ArrayList<Planet>();
@@ -63,8 +64,8 @@ void setup() {
   roomCreationMenu = new Menu();
   initializeRoomCreationMenu();
   roomLobby = new Lobby();
-  
-  
+  //println(displayWidth, displayHeight);
+  me = new Player();
   
   // State starts at MENU screen
   state = State.MENU;  
@@ -72,7 +73,6 @@ void setup() {
   // Create a new Animation of the Sun
   sun = new Animation("sun",60);
   // Create a new instance of Player -- TODO - Maybe delay this until player actually gets in the game ? Not sure if it makes a difference
-  player = new Player();
   
   // Add players -- TODO
   Planet planet1 = new Planet("planet1", 1);
@@ -144,6 +144,7 @@ void initializeLoginMenu() {
                      .setColor(255)
                      .setColorBackground(255)
                      .setFont(createFont("arial",42))
+                     .setFocus(true)
                      .setVisible(false);
 
   // Create Password Textfield
@@ -297,13 +298,28 @@ void checkLobbyButtons() {
     if (b.isClicked()) {
       switch(b.getName()) {
         case "join":
-          String[] res = authJoinRoom();
-          for (int i = 0; i < res.length; i++) {
-            println(res[i]);   
+          if (authJoinRoom()){
+              roomLobby.updateJoined();
+              roomLobby.setJoinedRoom();
+          }
+          break;
+        case "leave":
+          if (authLeaveRoom()) {
+            roomLobby.leaveRoom();
           }
           break;
         case "exit":
+          // Commented because Leave_room is currently not working properly
+          /*
+          if (authLeaveRoom()) {
+            roomLobby.leaveRoom();
+            state = State.PLAY;
+          }
+          */
           state = State.PLAY;
+          break;
+        case "refresh":
+          authBrowseRooms();
           break;
         default:
           break;
@@ -341,11 +357,47 @@ void checkStartMenuButtons() {
   }
 }
 
+boolean authBrowseRooms() {
+  String res = "";
+  try {
+    res = this.tcp.list_rooms();
+  } catch (IOException e) {
+    println("Failed");
+  }
+  if (!res.equals("")) {
+    println(res);
+    String[] temp = res.split("@");
+    for(int i =0; i<temp.length;i++) {
+      println(temp[i]);
+    }
+    roomLobby.refresh(temp);
+    
+  }
+  
+  return !res.equals("");
+}
+
+boolean authLeaveRoom() {
+  if (!roomLobby.isJoined()) {
+    return false;
+  }
+  String res = "";
+  String room = roomLobby.getJoinedRoom();
+  if (room.equals("")) return false;
+  
+  try {
+    res = this.tcp.leave_room(room);
+  } catch (Exception e){
+    println("Failed to leave room");
+    e.printStackTrace();
+    return false;
+  }
+  return res.equals(success);
+}  
 
 boolean authCreateRoom() {
   String res = "";
   String lobbyName = lobbyNameField.getText();
-  
   try {
     res = this.tcp.create_room(lobbyName);
   } catch(Exception e) {
@@ -356,34 +408,25 @@ boolean authCreateRoom() {
   
 }
 
-String[] authJoinRoom() {
+boolean authJoinRoom() {
   String res = "";
   String room = roomLobby.getSelectedRoom();
   if (room.equals("")) {
     println("No room selected.");
-    return new String[0];
+    return false;
   }
-  else {
-    try {
-      res = this.tcp.join_room(room);
-    } catch (Exception e) {
-        System.out.println("Failed message.");
-        e.printStackTrace();
-        return new String[0]; // Return an empty array on failure
-    }
+  try {
+    res = this.tcp.join_room(room);
+  } catch (Exception e) {
+    System.out.println("Failed message.");
+    e.printStackTrace();
+    return false;
+  }
+  return res.equals(success);
+}  
     
-    if (res.isEmpty()) {
-        // Return an empty array if the response is empty
-        return new String[0];
-    } else if (res.contains(",")) {
-        // If the response contains commas, assume it's a list of PIDs
-        return res.split(",");
-    } else {
-        // If there's no comma, treat it as a single PID response
-        return new String[]{res};
-    }
-  }
-}
+
+
 
 boolean authLogin() {
   String res = "";
@@ -440,6 +483,9 @@ void checkPlayMenuButtons() {
     if (b.isClicked()) {
       switch(b.getName()) {
         case "join":
+          if(authBrowseRooms()) {
+            state = State.LOBBY;
+          }
           state = State.LOBBY;
           break;
         case "create":
@@ -505,28 +551,36 @@ void drawSun() {
 
 
 void drawPlayer() {
-  if (player != null) {
-    
-    if (player.getBoost() > 0) player.applyGravity(keyMap);
+  if (me != null) {
+  me.applyGravity(keyMap);
+  me.display();
+  }
+  /*
+  
+  for(Player player: players) {
+    if (player != null) {
+      
+      if (player.getBoost() > 0) player.applyGravity(keyMap);
+      else {
+        player.outOfBoost();
+      }
+      if (player.checkCollisions()) {
+        player = null;
+        textFont(nightcore);
+        text("YOU LOST", 650, displayHeight/2 - 200); 
+      }
+      else {
+        drawPlayerBoost();
+        player.display();
+      }
+    }*/
     else {
-      player.outOfBoost();
-    }
-    if (player.checkCollisions()) {
-      player = null;
-      textFont(nightcore);
-      text("YOU LOST", 650, displayHeight/2 - 200); 
-    }
-    else {
-      drawPlayerBoost();
-      player.display();
+  
+        textFont(nightcore);
+        text("YOU LOST", 650, displayHeight/2-200); 
     }
   }
-  else {
 
-      textFont(nightcore);
-      text("YOU LOST", 650, displayHeight/2-200); 
-  }
-}
 
 void drawPlanets() {
   for(Planet p: planets) {
@@ -535,7 +589,7 @@ void drawPlanets() {
 }
 
 void drawPlayerBoost() {
-  int boost = (int)player.getBoost();
+  int boost = (int)me.getBoost();
   textSize(36);
   fill(255);
   if (boost == 0) fill(100);

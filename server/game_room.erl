@@ -18,3 +18,9 @@ gameRoom(Pids) -> %add pids, pid => alive?
                 ?CHANGE_STATE(Pid, {end_game})
             end, maps:keys(NewPids))
     end.
+
+
+%gameState([]) -> ok.
+%gameState([FirstPlayer | Rest]) ->
+%    FirstPlayer ! {positions},
+%    gameState(Rest);

@@ -44,9 +44,10 @@ class Player {
   void applyGravity(HashMap<Character, Boolean> keyMap) {
     PVector sun = new PVector(displayWidth/2, displayHeight/2);
     PVector acceleration = PVector.sub(sun, location);
+    float alpha = 0;
       
       // All the following values were obtained by pure trial and error, no math was harmed in this experiment
-    acceleration.setMag(0.1);
+    acceleration.setMag(0.05);
 
       // Modify acceleration based on user input
     PVector controlAcceleration = new PVector(0, 0);
@@ -56,10 +57,6 @@ class Player {
     }
     if (keyMap.get('a')) {
         controlAcceleration.add(-0.2, 0); // Move left
-        booster -= 0.5f;
-    }
-    if (keyMap.get('s')) {
-        controlAcceleration.add(0, 0.2); // Move down
         booster -= 0.5f;
     }
     if (keyMap.get('d')) {
@@ -88,6 +85,7 @@ class Player {
   float getBoost() {
     return booster;
   }
+  
   void display() {
     stroke(255);
     strokeWeight(2);

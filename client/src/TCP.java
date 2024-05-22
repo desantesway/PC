@@ -51,7 +51,26 @@ public class TCP {
       this.send(JOIN_ROOM, room);
       return this.receive();
     }
-
+    
+    public String leave_room(String room) throws IOException {
+      this.send(LEAVE_ROOM, room);
+      return this.receive();
+    }
+  
+    public String list_rooms() throws IOException { // Needed a temporary hack. Server is sending Message ++ "\n". And in.readLine() filters '\n'
+      this.send(LIST_ROOMS, "Lol");
+      StringBuilder line = new StringBuilder();
+      String current = in.readLine();
+      while (!Objects.equals(current, "!-SVDONE-!")){
+        line.append(current);
+        line.append('@');
+        current = in.readLine();
+      }
+      System.out.println(line.toString());
+      return line.toString();
+    }
+    
+    
     public String pingpong(int type) throws IOException {
         this.send(type);
         return this.receive();
