@@ -75,9 +75,12 @@ gamePlayer(GameProc, Sock, User) ->
                         self(), 
                         string:trim(binary_to_list(Message), trailing)},
                     gamePlayer(GameProc, Sock, User);
+                [<<?LEAVE_CHAT>>, _] -> % sends a chat message
+                    GameProc ! {leave_chat, self()},
+                    gamePlayer(GameProc, Sock, User);
                 [<<?UP_KEY>>, _] -> % sum about new button pressed (?)
                     % as if the calculations made the player die;
-                    GameProc ! {died, self()}, % !!!! ONLY FOR TESTING DEATH/XP this is supposed to be handled by the game_sim, not the player
+                    %GameProc ! {died, self()}, % !!!! ONLY FOR TESTING DEATH/XP this is supposed to be handled by the game_sim, not the player
                     gamePlayer(GameProc, Sock, User);
                 [<<?RIGHT_KEY>>, _] -> % sum about new button pressed (?)
                     gamePlayer(GameProc, Sock, User);

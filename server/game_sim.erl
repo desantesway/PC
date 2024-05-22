@@ -6,7 +6,13 @@ start(Name) ->
     % cria um ticker
     GameProc = self(),
     Chat = spawn(fun() -> gameChat(GameProc, maps:new()) end),
+    spawn(fun() -> gameTick(GameProc) end),
     gameSim(Chat, Name, #{}, false).
+
+gameTick(GameProc) ->
+    %do sum
+    timer:sleep(1000),
+    gameTick(GameProc).
 
 gameChat(GameProc, OnChat) ->
     receive
@@ -14,8 +20,26 @@ gameChat(GameProc, OnChat) ->
             ToSend = "!-CHAT-!@@@" ++ maps:get(Pid, OnChat) ++ "@@@sent:@@@" ++ Message ++ "\n",
             lists:foreach(fun(Key) -> ?SEND_MESSAGE(Key, ToSend) end, maps:keys(OnChat)),
             gameChat(GameProc, OnChat);
+        {pid_left, Pid} -> % removes a pid from the chat
+            Username = maps:get(Pid, OnChat),
+            ToSend = "!-CHAT-!@@@" ++ Username ++ "@@@left_chat\n",
+            NewOnChat = maps:remove(Pid, OnChat),
+            lists:foreach(fun(Key) -> ?SEND_MESSAGE(Key, ToSend) end, NewOnChat),
+            gameChat(GameProc, NewOnChat);
         {new_pid, Pid, Username} -> % adds a new pid to the chat
             gameChat(GameProc, maps:put(Pid, Username, OnChat))
+    end.
+
+afterGame(Chat, Name, Pids) ->
+    receive
+        {send_message, Pid, Message} -> % sends message to all players
+            Chat ! {new_message, Pid, Message},
+            afterGame(Chat, Name, Pids);
+        {leave_chat, Pid} ->
+            Chat ! {pid_left, Pid},
+            ?SEND_MESSAGE(Pid, "end_game\n"),
+            ?CHANGE_STATE(Pid, {end_game}),
+            lobbyProc ! {leave, Name, Pid}
     end.
 
 gameSim(Chat, Name, Pids, Countdown) -> %pid => {alive?, username} IMPLEMENTAR COUNTDOWN
@@ -34,14 +58,13 @@ gameSim(Chat, Name, Pids, Countdown) -> %pid => {alive?, username} IMPLEMENTAR C
             end, maps:keys(Pids)),
             gameSim(Chat, Name, Pids, false);
         {new_pid, Username, Pid} -> % add a new pid to the game
-            Chat ! {new_pid, Pid, Username}, %% !!!!!!!!!!!!!!!!!!THIS LINE IS NOT SUPPOSED TO BE HERE, JUST FOR TESTING
             gameSim(Chat, Name, maps:put(Pid, {true, Username}, Pids), Countdown);
         {send_message, Pid, Message} -> % sends message to all players
             Chat ! {new_message, Pid, Message},
             gameSim(Chat, Name, Pids, Countdown);
         {died, Pid} ->
             {_, Username} = maps:get(Pid, Pids),
-            %Chat ! {new_pid, Pid, Username}, %this is the real line
+            Chat ! {new_pid, Pid, Username},
             Chat ! {new_message, Pid, Username ++ " died\n"},
             NewAlives = lists:foldl( % gets the alive pids and 
                 fun(Key, AccAlives) ->
@@ -81,8 +104,7 @@ gameSim(Chat, Name, Pids, Countdown) -> %pid => {alive?, username} IMPLEMENTAR C
                     ?SEND_MESSAGE(Pid, "lost_game\n"),
                     ?CHANGE_STATE(Pid, {lost})
                 end, maps:keys(Pids)),
-                self() ! {end_game},
-                gameSim(Chat, Name, Pids, Countdown);
+                afterGame(Chat, Name, Pids);
             true -> % todos menos lastalive perdem
                 lists:foreach(fun(Pid) -> 
                     if Pid == LastAlive -> 
@@ -94,14 +116,8 @@ gameSim(Chat, Name, Pids, Countdown) -> %pid => {alive?, username} IMPLEMENTAR C
                     end
                 end, maps:keys(Pids)),
                 self() ! {end_game},
-                gameSim(Chat, Name, Pids, Countdown)
+                afterGame(Chat, Name, Pids)
             end;
-        {end_game} ->
-            lists:foreach(fun(Pid) -> 
-                ?SEND_MESSAGE(Pid, "end_game\n"),
-                ?CHANGE_STATE(Pid, {end_game}),
-                lobbyProc ! {leave, Name, Pid}
-            end, maps:keys(Pids));
         {interrupt_game, RIP} -> % ends the game removing all pids
             NewPids = maps:remove(RIP, Pids),
             lists:foreach(fun(Pid) -> 
