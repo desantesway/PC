@@ -1,145 +1,103 @@
 -module(game_sim).
 -include("server.hrl").
--include("pvectors.hrl").
--export([start/3]).
+-export([start/1]).
 
+start(Name) -> 
+    % cria um ticket
+    gameSim(Name, #{}, false).
 
--define(START_POS, [#pvector{x=100,y=100},#pvector{x=1500,y=1000}, #pvector{x=100,y=1000}, #pvector{x=1500,y=100}]). % All possible starting positions for players
--define(DELTA_SPEED, 0.1). % Change in speed
--define(SUN_RADIUS, 135). % Radius of sun
--define(PLANET_RADIUS, 100). % Radius of planets
--define(SUN_POS, #pvector{x=1920/2,y=1080/2}). % Position of sun
--define(TOP_SPEED, 10). % Maximum speed of player
--define(ACCEL_MAG, 0.08). % Magnitude of acceleration
--define(PLAYER_RADIUS, 25).  % Radius of player
-
-
-start(GameProc, Sock, UserAuth) -> % CAHNGE THIS - User = {{Name, Level, XP}, Boost, {{PX,PY}, {VX,VY}, Angle}, Buttons}, fazer teclas default aqui
-    {Name, _, _} = UserAuth,
-    PlayerState = setupPlayerState(Name),
-    gameSim(GameProc, Sock, PlayerState). 
-
-gameSim(GameProc, Sock, User) ->
+gameSim(Name, Pids, Countdown) -> %pid => {alive?, username} IMPLEMENTAR COUNTDOWN
+    io:format("Game ~p\n", [Pids]),
     receive
-        {broadcast, Data} ->
-            ?SEND_BROADCAST(Sock, Data),
-            gameSim(GameProc, Sock, User);
-        {broadcast_list, Data} ->
-            ?SEND_BROADCAST_LIST(Sock, Data),
-            gameSim(GameProc, Sock, User);
-        {fpieces, Data} ->
-            case Data of
-                {send_pid} ->
-                    GameProc ! {new_pid, self()},
-                    gameSim(GameProc, Sock, User);
-                {end_game} ->
-                    {{Name, Level, _, XP}, _, _, _} = User,
-                    server:userAuth(Sock, {Name, Level, "main", XP})
+        {ticket_request} -> % request and sends info of the current to all players
+            gameSim(Name, Pids, Countdown);
+        {countdown_started} ->
+            lists:foreach(fun(Key) -> % sends to all players that last player countdown started
+                ?SEND_MESSAGE(Key, "game_countdown_started\n")
+            end, maps:keys(Pids)),
+            gameSim(Name, Pids, true);
+        {countdown_ended} ->
+            lists:foreach(fun(Key) -> % sends to all players that last player countdown ended
+                ?SEND_MESSAGE(Key, "game_countdown_ended\n")
+            end, maps:keys(Pids)),
+            gameSim(Name, Pids, false);
+        {new_pid, Username, Pid} -> % add a new pid to the game
+            gameSim(Name, maps:put(Pid, {true, Username}, Pids), Countdown);
+        {died, Pid} ->
+            io:format("Died ~p\n", [Pid]),
+            NewAlives = lists:foldl( % gets the alive pids and 
+                fun(Key, AccAlives) ->
+                    case maps:get(Key, Pids) of
+                        {Alive, _} when Alive == true ->
+                            [Key | AccAlives];
+                        _ ->
+                            AccAlives
+                    end
+                end, [], maps:keys(Pids)),
+            {_, Username} = maps:get(Pid, Pids),
+            lists:foreach(fun(Key) -> % sends to all players the pid that died
+                String = erlang:pid_to_list(Pid) ++ "@@@died\n",
+                ?SEND_MESSAGE(Key, String)
+            end, maps:keys(Pids)),
+            NewPids = maps:put(Pid, {false, Username}, Pids),
+            case length(NewAlives) == 2 of
+                true -> % start countdown on another proccess
+                    GameProc = self(),
+                    spawn(fun() -> countdown(GameProc) end),
+                    gameSim(Name, NewPids, true);
+                false ->
+                    case length(NewAlives) == 1 of
+                        true ->
+                            case NewAlives of
+                                [LastAlive] -> % last alive wins
+                                    self() ! {start_end_game, LastAlive},
+                                    gameSim(Name, NewPids, Countdown)
+                            end;
+                        false ->
+                            gameSim(Name, NewPids, Countdown)
+                    end
             end;
-        {tcp, _, Data} ->
-            case re:split(binary_to_list(Data), "@@@") of
-                [<<?USERS_INFO>>, _] -> %sum about requesting user info
-                    gameSim(GameProc, Sock, User);
-                [<<?NEW_KEY>>, _] -> %sum about new button pressed (?)
-                    gameSim(GameProc, Sock, User)
+        {start_end_game, LastAlive} -> 
+            if Countdown -> % countdown still active - todos perdem, send lost to all por causa do xp para por a 0
+                lists:foreach(fun(Pid) -> 
+                    ?SEND_MESSAGE(Pid, "lost_game\n"),
+                    ?CHANGE_STATE(Pid, {lost})
+                end, maps:keys(Pids)),
+                self() ! {end_game},
+                gameSim(Name, Pids, Countdown);
+            true -> % todos menos lastalive perdem
+                lists:foreach(fun(Pid) -> 
+                    if Pid == LastAlive -> 
+                        ?CHANGE_STATE(Pid, {won}),
+                        ?SEND_MESSAGE(Pid, "won_game\n");
+                    true ->
+                        ?CHANGE_STATE(Pid, {lost}),
+                        ?SEND_MESSAGE(Pid, "lost_game\n")
+                    end
+                end, maps:keys(Pids)),
+                self() ! {end_game},
+                gameSim(Name, Pids, Countdown)
             end;
-        {tcp_closed, _} ->
-            {{_, _, Lobby, _}, _, _, _} = User,
-            lobbyProc ! {offline, Lobby, self()},
-            accsProc ! {offline, self()},
-            GameProc ! {end_game, self()};
-        {tcp_error, _, _} ->
-            {{_, _, Lobby, _}, _, _, _} = User,
-            lobbyProc ! {offline, Lobby, self()},
-            accsProc ! {offline, self()},
-            GameProc ! {end_game, self()};
-        Other ->
-            io:fwrite("ERROR ~p ~p\n", [self(), Other]),
-            gameSim(GameProc, Sock, User)
+        {end_game} ->
+            lists:foreach(fun(Pid) -> 
+                ?SEND_MESSAGE(Pid, "end_game\n"),
+                ?CHANGE_STATE(Pid, {end_game}),
+                lobbyProc ! {leave, Name, Pid}
+            end, maps:keys(Pids));
+        {interrupt_game, RIP} -> % ends the game removing all pids
+            NewPids = maps:remove(RIP, Pids),
+            lists:foreach(fun(Pid) -> 
+                ?SEND_MESSAGE(Pid, "interrupt_game\n"),
+                lobbyProc ! {offline, Name, Pid}
+            end, maps:keys(NewPids));
+        Data ->
+            io:format("Unexpected data ~p\n", [Data]),
+            gameSim(Name, Pids, Countdown)
     end.
 
-
-
-%% Initialize a player state with a given index Playerpos
-setupPlayerState(User, Playerpos) -> % I need the player position. Player 1 gets position #1 ... Player 4 gets position #4
-    InitialPos = lists:get(Playerpos, ?START_POS),
-    Vec = #pvector{x = 0.0, y = 0.0},
-    KeyMap = #{false, false, false}, %default keymap {up,left,right}
-    PlayerState = {User, 100,   {InitialPos,   Vec,        Vec,       0},   KeyMap},
-    %             {Username?, Boost,  {{PX,PY},   {VX,VY}  ,{AccX,AccY}, Angle}, Buttons}
-    PlayerState.
-
-    
-getNextPos(PlayerState) ->
-    Sunpos = ?SUN_POS,
-    {User, Boost, {Pos, Vel, Acc, Angle}, {UP,LEFT,RIGHT} = KeyMap} = PlayerState,
-    AccMag = ?ACCEL_MAG,
-    Topspeed = ?TOP_SPEED,
-    
-    
-    Accel = pvector_sub(Sunpos, Pos), % Get the vector from the player to the sun
-
-    Accel1 = set_magnitude(Accel, 0.1), % Limit the magnitude of the acceleration vector to 0.1
-    KeyAccel = #pvector{x=0,y=0},
-
-    case UP of ->
-        true -> 
-            AngleMovement = #pvector{x=math:cos(Angle) * Pos#pvector.x, y = math:sin(Angle) * Pos#pvector.y}  % Calculate velocity vector for a given angle
-            Acc_ = pvector_add(KeyAccel, AngleMovement), % Add the key acceleration to the angle movement
-        _ -> 
-            Acc_ = KeyAccel
-    end,
-    case LEFT of ->
-        true ->
-            % Calculate velocity vector for a given angle
-            AngleMovement = #pvector{x=math:cos(Angle + math:pi/2) * Pos#pvector.x, y = math:sin(Angle + math:pi/2) * Pos#pvector.y}  
-            Acc__ = pvector_add(Acc, AngleMovement), % Add the key acceleration to the angle movement
-        false ->
-            Acc__ = Acc_
-    end,
-    case RIGHT of ->
-        true ->
-            % Calculate velocity vector for a given angle
-            AngleMovement = #pvector{x=math:cos(Angle - math:pi/2) * Pos#pvector.x, y = math:sin(Angle - math:pi/2) * Pos#pvector.y}  
-            Acc___= pvector_add(Acc, AngleMovement), % Add the key acceleration to the angle movement
-        false ->
-            Acc___ = Acc__
-    end,
-    FinalAccel = pvector_add(Accel1, Acc___), % Add the key acceleration to the angle movement
-    Velocity = pvector_add(FinalAccel, Vel), % Finally, add accel to velocity
-    LimitVel = pvector_limit(Velocity, Topspeed), % Limit the velocity to the top speed
-    NewPos = pvector_add(LimitVel, Pos), % Add velocity to position
-
-    NewPlayerState = {User, Boost, {NewPos, LimitVel, FinalAccel, Angle}, KeyMap},
-    NewPlayerState.
-
-
-checkCollision(PlayerState) ->
-    {_, _, {Pos, Vel, Acc, Angle}, _} = PlayerState,
-    Sunpos = ?SUN_POS,
-    Sunrad = ?SUN_RADIUS,
-    Playrad = ?PLAYER_RADIUS,
-    SunDist = pvector_dist(Pos, Sunpos),
-
-    %% Check for margin collisions with the screen
-    CollideX = case Pos#pvector.x of 
-                   X when X < 0 -> 
-                       true;
-                   X when X > 1920 ->
-                       true;
-                   _ ->
-                       false
-               end,
-    CollideY = case Pos#pvector.y of 
-                   Y when Y < 0 -> 
-                       true;
-                   Y when Y > 1080 ->
-                       true;
-                   _ ->
-                       false
-               end,
-
-    %% Check for collision with the sun or the screen
-    SunDist < Sunrad + Playrad or CollideX or CollideY.
-
-  
+countdown(GameProc)-> 
+    io:format("Countdown started ~p\n", [GameProc]),
+    GameProc !  {countdown_started},
+    timer:sleep(5000),
+    io:format("Countdown ended\n"),
+    GameProc !  {countdown_ended}.

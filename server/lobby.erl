@@ -16,7 +16,7 @@ lobby(Rooms) -> % only logged can create room CHANGE
             if CountProc == self() ->
                 continue;
             true ->
-                lists:foreach(fun(Pid) -> Pid ! {start_game, Game}, ?SEND_MESSAGE(Pid, "enter_game\n"), ?CHANGE_STATE(Pid, {send_pid}) end, Pids)
+                lists:foreach(fun(Pid) -> Pid ! {start_game, Game}, ?SEND_MESSAGE(Pid, "enter_game\n") end, Pids)
             end,
             lobby(Rooms);
         {join, User, Lobby, Room, Level, Pid} -> % jogador tenta entrar numa sala
@@ -108,11 +108,12 @@ lobby(Rooms) -> % only logged can create room CHANGE
             true->
                 {CountProc, RLevel, Pids} = maps:get(Room, Rooms),
                 if CountProc == self() ->
-                    continue;
+                    self() ! {leave, Room, Pid},
+                    lobby(Rooms);
                 true ->
                     if length(Pids) =< 2 -> %stop countdown/ignore i
                         NRooms = maps:put(Room, {self(), RLevel, Pids}, Rooms),
-                        lists:foreach(fun(PPid) -> ?CHANGE_STATE(PPid, {countdown_blocked}), ?SEND_MESSAGE(Pid, "countdown_blocked\n") end, Pids),
+                        lists:foreach(fun(PPid) -> ?CHANGE_STATE(PPid, {unexpected_leave}), ?SEND_MESSAGE(Pid, "unexpected_leave\n") end, Pids),
                         self() ! {leave, Room, Pid},
                         lobby(NRooms);
                     true ->

@@ -3,12 +3,13 @@
 -define(SEND_MUL_MESSAGE(Socket, List), Socket ! {broadcast_list, List}).
 -define(SEND_BROADCAST(Sock, Data),
     gen_tcp:send(Sock, Data),
+    %io:format("Message ~p\n", [Data]),
     gen_tcp:send(Sock, "!-SVDONE-!\n")
 ).
 
 -define(SEND_BROADCAST_LIST(Sock, Data),
     lists:foreach(fun(Message) ->
-        gen_tcp:send(Sock, Message ++ "\n")
+        gen_tcp:send(Sock, Message ++ "@@@\n")
     end, Data),
     gen_tcp:send(Sock, "!-SVDONE-!\n")
 ).
@@ -23,5 +24,6 @@
 -define(REMOVE_ACCOUNT, "8").
 -define(CREATE_ROOM, "9").
 -define(LIST_ROOMS, "10").
--define(USERS_INFO, "11").
--define(NEW_KEY, "12").
+-define(UP_KEY, "11").
+-define(RIGHT_KEY, "12").
+-define(LEFT_KEY, "13").
