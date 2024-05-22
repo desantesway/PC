@@ -2,7 +2,6 @@
 
 > TODO
 - chat if player died or after the game - pedro
-- player level system & save - pedro
 - game_sim (erlang) - costinha
 
 > Client TODO:
