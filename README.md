@@ -1,7 +1,7 @@
 # PC
 
 > TODO
-- chat if player died or after the game - pedro
+- chat after the game - pedro
 - game_sim (erlang) - costinha
 
 > Client TODO:
