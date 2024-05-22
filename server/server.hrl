@@ -8,7 +8,6 @@
 
 -define(SEND_BROADCAST_LIST(Sock, Data),
     lists:foreach(fun(Message) ->
-        io:fwrite("Message: ~p\n", [Message]),
         gen_tcp:send(Sock, Message ++ "\n")
     end, Data),
     gen_tcp:send(Sock, "!-SVDONE-!\n")

@@ -33,7 +33,7 @@ gameSim(GameProc, Sock, User) ->
                     GameProc ! {new_pid, self()},
                     gameSim(GameProc, Sock, User);
                 {end_game} ->
-                    {{Name, Level, XP}, _, _, _} = User,
+                    {{Name, Level, _, XP}, _, _, _} = User,
                     server:userAuth(Sock, {Name, Level, "main", XP})
             end;
         {tcp, _, Data} ->
@@ -43,16 +43,16 @@ gameSim(GameProc, Sock, User) ->
                 [<<?NEW_KEY>>, _] -> %sum about new button pressed (?)
                     gameSim(GameProc, Sock, User)
             end;
-        {tcp_closed, _} -> %%remove from game and if game < 2 players, end game
-            %{_, _, Lobby} = User,
+        {tcp_closed, _} ->
+            {{_, _, Lobby, _}, _, _, _} = User,
+            lobbyProc ! {offline, Lobby, self()},
             accsProc ! {offline, self()},
             GameProc ! {end_game, self()};
-            %lobbyProc ! {offline, Lobby, self()};
         {tcp_error, _, _} ->
-            %{_, _, Lobby} = User,
+            {{_, _, Lobby, _}, _, _, _} = User,
+            lobbyProc ! {offline, Lobby, self()},
             accsProc ! {offline, self()},
             GameProc ! {end_game, self()};
-            %lobbyProc ! {offline, Lobby, self()};
         Other ->
             io:fwrite("ERROR ~p ~p\n", [self(), Other]),
             gameSim(GameProc, Sock, User)
