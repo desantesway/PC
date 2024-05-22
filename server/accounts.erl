@@ -107,6 +107,16 @@ accounts(SPids, Accs, Lvl) ->
                 ?SEND_MESSAGE(Pid, "Conta Removida\n"),
                 accounts(NSocket, NAccs, Lvl)
             end;
+        {ranking, Pid} ->
+            RankedList = lists:sort(fun({_, {Lvl1, XP1}}, {_, {Lvl2, XP2}}) ->
+                                        case Lvl1 =:= Lvl2 of
+                                            true -> XP1 > XP2;
+                                            false -> Lvl1 > Lvl2
+                                        end
+                                    end, maps:to_list(Lvl)),
+            Ranking = lists:map(fun({Username, _}) -> Username end, RankedList),
+            ?SEND_MUL_MESSAGE(Pid, Ranking),
+            accounts(SPids, Accs, Lvl);
         {update_lvl, Pid, NewLvl, NewXP} ->
             ?CHANGE_STATE(Pid, {new_lvl, NewLvl}),
             ?CHANGE_STATE(Pid, {new_xp, NewXP}),

@@ -29,3 +29,4 @@
 -define(LEFT_KEY, "13").
 -define(CHAT_MESSAGE, "14").
 -define(LEAVE_CHAT, "15").
+-define(RANKING, "16").

@@ -189,6 +189,9 @@ userAuth(Sock, User) ->
                     Level,
                     self()},
                 userAuth(Sock, User);
+            [<<?RANKING>>, _] ->
+                accsProc ! {ranking, self()},
+                userAuth(Sock, User);
             [<<?LIST_ROOMS>>, _] ->
                 {_, Level, _, _} = User,
                 lobbyProc ! {list_rooms, Level, self()},
