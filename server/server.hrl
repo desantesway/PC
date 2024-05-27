@@ -2,17 +2,21 @@
 -define(SEND_MESSAGE(Socket, Message), Socket ! {broadcast, Message}).
 -define(SEND_MUL_MESSAGE(Socket, List), Socket ! {broadcast_list, List}).
 -define(SEND_BROADCAST(Sock, Data),
-    gen_tcp:send(Sock, Data),
-    %io:format("Message ~p\n", [Data]),
-    gen_tcp:send(Sock, "!-SVDONE-!\n")
+    gen_tcp:send(Sock, Data)
+).
+
+-define(SEND_STATES(Socket,Data),
+    lists:foreach(fun(Message) -> 
+        {Alive,Username,{_, Boost,{Pos, Velocity, Accel, Angle}, _}} = Message,
+        RelevantData = [Username, Boost],
+        Socket ! {broadcast, RelevantData}
+    end, Data),
 ).
 
 -define(SEND_BROADCAST_LIST(Sock, Data),
     lists:foreach(fun(Message) ->
         gen_tcp:send(Sock, Message ++ "@@@\n")
-    end, Data),
-    gen_tcp:send(Sock, "!-SVDONE-!\n")
-).
+    end, Data)).
 
 -define(CREATE_ACCOUNT, "1").
 -define(LOGIN_ACCOUNT, "2").

@@ -53,7 +53,7 @@ acceptor(LSock) ->
         end.
 
 userWait(Sock, User) ->
-    io:fwrite("User ~p waiting~n", [User]),
+    %io:fwrite("User ~p waiting~n", [User]),
     receive
         {fpieces, Data} ->
             case Data of
@@ -81,8 +81,8 @@ userWait(Sock, User) ->
                     ?SEND_MESSAGE(Sock, "Error: Incorrect syntax.\n"),
                     userAuth(Sock, User)
             end;
-        {start_game, Game} ->
-            game_player:start(Game, Sock, User);
+        {start_game, Game, PlayerNum} ->
+            game_player:start(Game, Sock, User, PlayerNum);
         {broadcast_list, Data} ->
             ?SEND_BROADCAST_LIST(Sock, Data),
             userWait(Sock, User);
@@ -100,7 +100,7 @@ userWait(Sock, User) ->
     end.
 
 userAuth(Sock, User) ->
-    io:fwrite("User ~p auth~n", [User]),
+    % io:fwrite("User ~p auth~n", [User]),
     receive
     {broadcast, Data} ->
         ?SEND_BROADCAST(Sock, Data),
@@ -120,6 +120,7 @@ userAuth(Sock, User) ->
                 userAuth(Sock, {UserN, Level, Room, XP});
             {countdown, Room} ->
                 {_, _, Lobby, _} = User,
+                io:fwrite("Starting countdown for ~p~n", [Room]),
                 Game = spawn(fun() -> game_sim:start(Room) end),
                 CountProc = spawn(fun() -> countdown(Lobby, Game) end),
                 self() ! {fpieces, {wait}}, 

@@ -22,7 +22,7 @@ accounts(SPids, Accs, Lvl) ->
         {create_account, Username, Password, Pid} ->
             case maps:is_key(Username, Accs) of
                 true ->
-                    ?SEND_MESSAGE(Pid, "Nome ja existe\n"),
+                    ?SEND_MESSAGE(Pid, "res@@@Nome ja existe\n"),
                     accounts(SPids, Accs, Lvl);
                 false ->
                     NAccs = maps:put(Username, Password, Accs),
@@ -30,7 +30,7 @@ accounts(SPids, Accs, Lvl) ->
                     NewPids = maps:put(Pid, Username, SPids),
                     self() ! {save_acc, NAccs},
                     self() ! {save_lvl, NLvl},
-                    ?SEND_MESSAGE(Pid, "success\n"),
+                    ?SEND_MESSAGE(Pid, "res@@@success\n"),
                     accounts(NewPids, NAccs, NLvl)
             end;
         {login, Username, Password, Pid} ->
@@ -40,37 +40,37 @@ accounts(SPids, Accs, Lvl) ->
                     if RealPass == Password ->
                         NewPids = maps:put(Pid, Username, SPids),
                         ?CHANGE_STATE(Pid, {new_name, Username}),
-                        ?SEND_MESSAGE(Pid, "success\n"),
+                        ?SEND_MESSAGE(Pid, "res@@@success\n"),
                         accounts(NewPids, Accs, Lvl);
                     true ->
-                        ?SEND_MESSAGE(Pid, "Password incorreta\n"),
+                        ?SEND_MESSAGE(Pid, "res@@@Password incorreta\n"),
                         accounts(SPids, Accs, Lvl)
                     end;
                 false ->
-                    ?SEND_MESSAGE(Pid, "Username nao existe\n"),
+                    ?SEND_MESSAGE(Pid, "res@@@Username nao existe\n"),
                     accounts(SPids, Accs, Lvl)
             end;
         {logout, Pid} ->
             User = maps:get(Pid, SPids),
             if User == "Anonymous" ->
-                ?SEND_MESSAGE(Pid, "Logout ja feito\n"),
+                ?SEND_MESSAGE(Pid, "res@@@Logout ja feito\n"),
                 accounts(SPids, Accs, Lvl);
             true->
                 NewPids = maps:put(Pid, "Anonymous", SPids),
                 ?CHANGE_STATE(Pid, {new_room, "main"}),
                 ?CHANGE_STATE(Pid, {new_name, "Anonymous"}),
-                ?SEND_MESSAGE(Pid, "Logout feito\n"),
+                ?SEND_MESSAGE(Pid, "res@@@Logout feito\n"),
                 accounts(NewPids, Accs, Lvl)
             end;
         {change_name, Name, Pid} -> 
             User = maps:get(Pid, SPids),
             if User == "Anonymous" ->
-                ?SEND_MESSAGE(Pid, "Precisas de fazer login\n"),
+                ?SEND_MESSAGE(Pid, "res@@@Precisas de fazer login\n"),
                 accounts(SPids, Accs, Lvl);
             true ->
                 case maps:is_key(Name, Accs) of
                     true ->
-                        ?SEND_MESSAGE(Pid, "Nome ja existe\n"),
+                        ?SEND_MESSAGE(Pid, "res@@@Nome ja existe\n"),
                         accounts(SPids, Accs, Lvl);
                     false ->
                         ?CHANGE_STATE(Pid, {new_name, Name}),
@@ -78,25 +78,25 @@ accounts(SPids, Accs, Lvl) ->
                         Pass = maps:get(User, Accs),
                         NAccs = maps:put(Name, Pass, maps:remove(User, Accs)),
                         self() ! {save_acc, NAccs},
-                        ?SEND_MESSAGE(Pid, "Nome Mudado\n"),
+                        ?SEND_MESSAGE(Pid, "res@@@Nome Mudado\n"),
                         accounts(NSocket, NAccs, Lvl)
                 end
             end;
         {change_pass, Pass, Pid} -> 
             User = maps:get(Pid, SPids),
             if User == "Anonymous" ->
-                ?SEND_MESSAGE(Pid, "Precisas de fazer login\n"),
+                ?SEND_MESSAGE(Pid, "res@@@Precisas de fazer login\n"),
                 accounts(SPids, Accs, Lvl);
             true ->
                 NAccs = maps:put(User, Pass, Accs),
                 self() ! {save_acc, NAccs},
-                ?SEND_MESSAGE(Pid, "Pass Mudada\n"),
+                ?SEND_MESSAGE(Pid, "res@@@Pass Mudada\n"),
                 accounts(SPids, NAccs, Lvl)
             end;
         {remove_account, Pid} ->
             User = maps:get(Pid, SPids),
             if User == "Anonymous" ->
-                ?SEND_MESSAGE(Pid, "Precisas de fazer login\n"),
+                ?SEND_MESSAGE(Pid, "res@@@Precisas de fazer login\n"),
                 accounts(SPids, Accs, Lvl);
             true ->
                 NAccs = maps:remove(User, Accs),
@@ -104,7 +104,7 @@ accounts(SPids, Accs, Lvl) ->
                 self() ! {save_acc, NAccs},
                 ?CHANGE_STATE(Pid, {new_name, "Anonymous"}),
                 ?CHANGE_STATE(Pid, {new_room, "main"}),
-                ?SEND_MESSAGE(Pid, "Conta Removida\n"),
+                ?SEND_MESSAGE(Pid, "res@@@Conta Removida\n"),
                 accounts(NSocket, NAccs, Lvl)
             end;
         {ranking, Pid} ->

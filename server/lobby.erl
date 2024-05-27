@@ -5,7 +5,7 @@
 start() -> lobby(#{}).
 % gestor de salas do jogo
 lobby(Rooms) -> % only logged can create room CHANGE
-    io:format("Rooms ~p~n", [Rooms]),
+    %% io:format("Rooms ~p~n", [Rooms]),
     receive
         {countdown_started, CountProc, Room}  ->
             case maps:is_key(Room, Rooms) of
@@ -22,10 +22,11 @@ lobby(Rooms) -> % only logged can create room CHANGE
                 case maps:is_key(Room, Rooms) of
                     true ->
                         {CountProc, _, Pids} = maps:get(Room, Rooms),
+                        PlayerNum = length(Pids),
                         if CountProc == self() ->
                             continue;
                         true ->
-                            lists:foreach(fun(Pid) -> Pid ! {start_game, Game}, ?SEND_MESSAGE(Pid, "enter_game\n") end, Pids)
+                            lists:foreach(fun(Pid) -> Pid ! {start_game, Game, PlayerNum}, ?SEND_MESSAGE(Pid, "enter_game\n") end, Pids)
                         end,
                         lobby(Rooms);
                     false ->
@@ -44,6 +45,7 @@ lobby(Rooms) -> % only logged can create room CHANGE
                                 if length(Pids) < 4 -> % maximo de jogadores
                                     NRooms = maps:put(Room, {CountProc, RLevel, [Pid | Pids]} , Rooms),
                                     ?CHANGE_STATE(Pid, {new_room, Room}),
+                                    io:fwrite("User ~p joined room ~p~n", [User, Room]),
                                     ?SEND_MESSAGE(Pid, "success\n"),
                                     if (length(Pids) + 1) == 2 -> %% start countdown
                                         ?CHANGE_STATE(Pid, {countdown, Room}); 

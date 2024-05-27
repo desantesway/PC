@@ -1,5 +1,5 @@
 %% PVectors module for vector math functions in Erlang
--module(pvectors).
+%-module(pvectors).
 -export([pvector_dist/2, pvector_sub/2, pvector_add/2, set_magnitude/2, pvector_limit/2]).
 
 %% Define the PVector record for vector math
