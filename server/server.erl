@@ -68,7 +68,7 @@ userWait(Sock, User) ->
                         userAuth(Sock, {UserN, Level, Room, XP})
                     end;
                 {unexpected_leave} ->
-                    ?SEND_MESSAGE(Sock, "unexpected_leave.\n"),
+                    ?SEND_MESSAGE(Sock, "res@@@unexpected_leave.\n"),
                     userAuth(Sock, User)
             end;
         {tcp, _, Data} ->
@@ -78,7 +78,7 @@ userWait(Sock, User) ->
                     lobbyProc ! {offline,  Lobby, self()},
                     userAuth(Sock, User);
                 _ ->
-                    ?SEND_MESSAGE(Sock, "Error: Incorrect syntax.\n"),
+                    ?SEND_MESSAGE(Sock, "res@@@Error: Incorrect syntax.\n"),
                     userAuth(Sock, User)
             end;
         {start_game, Game, PlayerNum} ->

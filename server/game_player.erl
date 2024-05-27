@@ -55,7 +55,7 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
             case Data of
                 {died} ->
                     io:format("Died ~p\n", [self()]),
-                    ?SEND_BROADCAST(Sock, "you_died\n"),
+                    ?SEND_BROADCAST(Sock, "game@@@you_died\n"),
                     gamePlayer(GameProc, Sock, PlayerState, PlayerIndex);
                 {unexpected_leave} ->
                     self() ! {fpieces, {end_game}},
