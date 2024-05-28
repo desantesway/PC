@@ -12,13 +12,18 @@ public class Worker extends Thread {
 }
 
 class PosWorker extends Worker {
-    public final String username;
+    public String username;
     private final String index;
 
     public PosWorker(TCP tcp, GameState gameState, String index, String username) {
         super(tcp, gameState);
         this.index = index;
         this.username = username;
+    }
+    
+    
+    public void setUsername(String user) {
+      this.username = user;
     }
 
     public void go() throws IOException, InterruptedException {
@@ -67,20 +72,21 @@ class GameWorker extends Worker {
         try {
             while((res = this.tcp.receive("game")) != null) {
                 switch (res) {
-                    case "countdown_start" -> {
+                    case "countdown_start":
                         this.gameState.l.readLock().lock();
                         this.gameState.setCountdown(true);
-                    }
-                    case "countdown_end" -> {
+                        break;
+                    case "countdown_end":
                         this.gameState.l.readLock().lock();
                         this.gameState.setCountdown(false);
-                    }
-                    case "player_index" -> {
+                        break;
+                    case "player_index":
                         this.gameState.l.readLock().lock();
                         this.gameState.setIndex(Integer.parseInt(res.split("@@@")[1]));
-                    }
-                    default -> {
-                    }
+                        break;
+                    default:
+                        break;
+                    
                 }
             }
         } finally {

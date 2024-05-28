@@ -10,7 +10,7 @@ class Planet {
     images = new PImage[imageCount];
 
     for (int i = 0; i < imageCount;i++){
-      String filename = model + "_" + nf(i,2)+ ".png";
+      String filename = model + "_" + nf(i,5)+ ".png"; //!!!!!!!!!!!!
 
       images[i] = loadImage(filename);
       images[i].resize((int)radius,(int)radius);

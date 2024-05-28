@@ -4,6 +4,7 @@ import java.util.*;
 
 public class TCP {
     //Lock l = new ReentrantLock();
+
     private final Socket socket;
     private BufferedReader in;
     private PrintWriter out;
@@ -24,6 +25,7 @@ public class TCP {
         this.taskMap.put("res", new LinkedList<>());
         this.taskMap.put("game", new LinkedList<>());
         this.taskMap.put("chat", new LinkedList<>());
+        this.taskMap.put("wait", new LinkedList<>());
         // Add meteor types
     }
 
@@ -32,6 +34,9 @@ public class TCP {
         this.in = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
         this.out = new PrintWriter(this.socket.getOutputStream());
         taskMapper();
+    }
+    
+    public void start() throws IOException{
         this.postman = new Thread(() -> {
             String res;
             try {
@@ -40,7 +45,7 @@ public class TCP {
                     Queue<String> tasks = this.taskMap.get(task[0]); // get the Queue from the HashMap
                     synchronized (tasks) { // Add the task to the Queue and notify main thread
                         tasks.add(task[1]); 
-                        tasks.notify();
+                        tasks.notify();   // Notify worker thread waiting on this queue
                     }
                 }
             } catch (IOException e) {
@@ -56,11 +61,27 @@ public class TCP {
         out.flush();
     }
 
+    public String waiting(String task) throws IOException, InterruptedException {
+        Queue<String> tasks = this.taskMap.get(task);
+        synchronized (tasks) {
+            if (tasks.isEmpty()) {
+                return "";
+            }
+            else {
+                return tasks.remove();
+            }
+        }
+    }
+
     public String receive(String task) throws IOException, InterruptedException {
         Queue<String> tasks = this.taskMap.get(task);
         synchronized (tasks) {
             while (tasks.isEmpty()) {
-                tasks.wait();
+                try {
+                    tasks.wait();
+                } catch (InterruptedException e) {
+                    throw e;
+                }
             }
             return tasks.remove();
         }

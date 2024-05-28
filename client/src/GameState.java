@@ -11,7 +11,7 @@ public class GameState {
 
     private int index; // Just to know what my player index is
     public float posX, posY, boost; // My position n stuff
-    public Map<String, float[]> enemies;
+    public Map<String, float[]>   enemies;
     public Map<String, float[]> planets;
     public boolean countdown;
     

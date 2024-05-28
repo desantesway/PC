@@ -9,14 +9,14 @@ class Lobby {
   
   Lobby() {
     this.buttons = new ArrayList<>();
-    exit = new Button("exit", displayWidth/2, displayHeight * 0.8);
-    join = new Button("join", displayWidth/2 - 500, displayHeight * 0.8);
-    leave = new Button("leave", displayWidth/2 - 250, displayHeight * 0.9);
-    refresh = new Button("refresh", displayWidth/2 + 400, displayHeight * 0.15);
+    exit = new Button("exit", displayWidth/2 + 100, displayHeight/2 + 385/2);
+    join = new Button("join", displayWidth/2 - 1263/2 - 100, displayHeight/2 + 385/2);
+    //leave = new Button("leave", displayWidth/2 + 100, displayHeight/2 + 385/2);
+    refresh = new Button("refresh", displayWidth - 350, displayHeight * 0.15, 100, 100);
     this.buttons.add(exit);
     this.buttons.add(join);
     this.buttons.add(refresh);
-    this.buttons.add(leave);
+    //this.buttons.add(leave);
     this.currentLobbies = 0;
     this.lobbies = new ArrayList<>();
     this.selectedRoom = "";
@@ -74,6 +74,9 @@ class Lobby {
       }
     }
     //println(this.getSelectedRoom());
+  }
+  void setSelectedRoom(String room) {
+    this.selectedRoom = room;
   }
   
   String getSelectedRoom() {
