@@ -1,10 +1,8 @@
 # PC
 
 > TODO
-- game_sim (erlang) - costinha
+- game_sim (erlang
+- > Player Collisions
 
 > Client TODO:
-- Room menu gui - done
-- handle server messages for lobby/room creation correctly - mostly done, need game messages
-- add other players to the game
-- initial server game logic -> client side render 
+- Update state by reading from GameState class 
