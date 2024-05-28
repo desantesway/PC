@@ -59,7 +59,7 @@ accounts(SPids, Accs, Lvl) ->
                 NewPids = maps:put(Pid, "Anonymous", SPids),
                 ?CHANGE_STATE(Pid, {new_room, "main"}),
                 ?CHANGE_STATE(Pid, {new_name, "Anonymous"}),
-                ?SEND_MESSAGE(Pid, "res@@@Logout feito\n"),
+                ?SEND_MESSAGE(Pid, "res@@@success\n"),
                 accounts(NewPids, Accs, Lvl)
             end;
         {change_name, Name, Pid} -> 

@@ -14,7 +14,7 @@
 start(GameProc, Sock, UserAuth, PlayerNum) -> %PlayerState = {{Name, Level, Lobby, XP}, BoostLeft, {Pos, Velocity, Angle}, Buttons}
     %io:format("game proc pid ~p\n", [GameProc]),
     {Name, _, _, _} = UserAuth,
-    Keys = {true, false, false},
+    Keys = {false, false, false},
     %io:format("~p\n", [Keys]),
     Me = self(),
     %io:format("Sending new_pid to gameProc ~p~p~p\n", [Name,Me,PlayerNum]),
@@ -166,49 +166,62 @@ getNextPos(PlayerState) ->
     Accel = pvector_sub(Sunpos, Pos), % Get the vector from the player to the sun
     Accel1 = set_magnitude(Accel, AccMag), % Limit the magnitude of the acceleration vector to 0.1
     KeyAccel = #pvector{x=0,y=0},
-    case UP of
-        true -> 
-            AngleMovement = #pvector{x=math:cos(Angle) * 0.2, y = math:sin(Angle)*0.2},  % Calculate velocity vector for a given angle
-            Acc_ = pvector_add(KeyAccel, AngleMovement);                                                       % Add the key acceleration to the angle movement
+    case Boost of
+        0 -> 
+            Acc___ = KeyAccel,
+            Boost___ = 0;
         _ -> 
-            Acc_ = KeyAccel
+            case UP of
+                true -> 
+                    AngleMovement = #pvector{x=math:cos(Angle) * 0.2, y = math:sin(Angle)*0.2},  % Calculate velocity vector for a given angle
+                    Acc_ = pvector_add(KeyAccel, AngleMovement),
+                    Boost_ = Boost - 1;                                                    % Add the key acceleration to the angle movement
+                _ -> 
+                    Acc_ = KeyAccel,
+                    Boost_ = Boost - 1
+                    
+            end,
+            case LEFT of
+                true ->
+                    % Calculate velocity vector for a given angle
+                    AngleMovement1 = #pvector{x=math:cos(Angle + math:pi()/2) * 0.2, y = math:sin(Angle + math:pi()/2) * 0.2},
+                    Acc__ = pvector_add(Acc, AngleMovement1), % Add the key acceleration to the angle movement
+                    Boost__ = Boost_ - 1;
+                _ ->
+                    Acc__ = Acc_,
+                    Boost__ = Boost_ - 1
+            end,
+            case RIGHT of
+                true ->
+                    % Calculate velocity vector for a given angle
+                    AngleMovement2 = #pvector{x=math:cos(Angle - math:pi()/2) * 0.2, y = math:sin(Angle - math:pi()/2) * 0.2},
+                    Acc___= pvector_add(Acc, AngleMovement2), % Add the key acceleration to the angle movement
+                    Boost___ = Boost__ - 1;
+                _ ->
+                    Acc___ = Acc__,
+                    Boost___ = Boost__ - 1
+            end
     end,
-    case LEFT of
-        true ->
-            % Calculate velocity vector for a given angle
-            AngleMovement1 = #pvector{x=math:cos(Angle + math:pi()/2) * 0.2, y = math:sin(Angle + math:pi()/2) * 0.2},
-            Acc__ = pvector_add(Acc, AngleMovement1); % Add the key acceleration to the angle movement
-        _ ->
-            Acc__ = Acc_
-    end,
-    case RIGHT of
-        true ->
-            % Calculate velocity vector for a given angle
-            AngleMovement2 = #pvector{x=math:cos(Angle - math:pi()/2) * 0.2, y = math:sin(Angle - math:pi()/2) * 0.2},
-            Acc___= pvector_add(Acc, AngleMovement2); % Add the key acceleration to the angle movement
-        _ ->
-            Acc___ = Acc__
-    end,
+    
     FinalAccel = pvector_add(Accel1, Acc___), % Add the key acceleration to the angle movement
     Velocity = pvector_add(FinalAccel, Vel), % Finally, add accel to velocity
     LimitVel = pvector_limit(Velocity, Topspeed), % Limit the velocity to the top speed
     NewPos = pvector_add(LimitVel, Pos), % Add velocity to position
 
-    NewPlayerState = {Name, Boost, {NewPos, LimitVel, FinalAccel, Angle}, KeyMap},
+    NewPlayerState = {Name, Boost___, {NewPos, LimitVel, FinalAccel, Angle}, KeyMap},
     NewPlayerState.
 
 
 checkCollision(PlayerState) ->
-     % Placeholder for now, this function will check for collisions with the sun or the screen
     {_, _, {Pos, _, _, _}, _} = PlayerState,
     Sunpos = ?SUN_POS,
     Sunrad = ?SUN_RADIUS,
     Playrad = ?PLAYER_RADIUS,
     SunDist = pvector_dist(Pos, Sunpos),
-    SunCollide = SunDist < Playrad + (Sunrad - 20), %% Give the player some leeway man, players love leeway
+    SunCollide = SunDist < Playrad + (Sunrad - 20), %% Give the player some leeway man
 
     % Check for margin collisions with the screen
-    %% these values are for 1920x1080 screen... I should probably ask the server for displayWidth/displayHeight
+    %% these values are for 1920x1080 screen... I should probably ask the client for displayWidth/displayHeight
     %% or just force the client to be 1920x1080 :)
     CollideX = case Pos#pvector.x of 
                    X when X < -10 ->  

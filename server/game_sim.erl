@@ -101,7 +101,25 @@ gameSim(Chat, Name, Pids, Countdown, PlayerCount, Indexes) -> % pids => {alive?,
             {Alive, Username,_} = maps:get(Pid, Pids),
             NewPids = maps:put(Pid, {Alive, Username, StartingState}, Pids),
             NewIndexes = maps:put(Pid, {Index, false}, Indexes), 
-            gameSim(Chat, Name, NewPids, Countdown, PlayerCount, NewIndexes);
+            IndexLength = length(maps:keys(NewIndexes)),
+            PidsLength = length(maps:keys(NewPids)),
+            case IndexLength == PidsLength of
+                true -> % all players have started
+                    io:format("All players have started ~p\n", [maps:keys(NewIndexes)]),
+                    lists:foreach(fun(Key) -> % sends to all players that all players have started
+                        {_, Username, {_, Boost, {Pos, _, _, Angle}, _}} = maps:get(Key, NewPids),
+                        {Index1, _} = maps:get(Key, NewIndexes),
+                        RelevantData = [Index1, Username, Boost, Pos#pvector.x, Pos#pvector.y, Angle],
+                        lists:foreach(fun(Pid_) ->
+                            FormattedData = io_lib:format("pos~w@@@~w@@@~w@@@~w@@@~w@@@~w\n", RelevantData),
+                            StringData = lists:flatten(FormattedData),
+                            ?SEND_MESSAGE(Pid_, StringData)
+                        end, maps:keys(NewIndexes))
+                    end, maps:keys(NewIndexes)),
+                    gameSim(Chat, Name, NewPids, Countdown, PidsLength, NewIndexes);
+                false -> % not all players have started
+                    gameSim(Chat, Name, NewPids, Countdown, PlayerCount, NewIndexes)
+            end;
         {countdown_started} ->
             lists:foreach(fun(Key) -> % sends to all players that last player countdown started
                 ?SEND_MESSAGE(Key, "game@@@countdown_start\n")
@@ -114,18 +132,25 @@ gameSim(Chat, Name, Pids, Countdown, PlayerCount, Indexes) -> % pids => {alive?,
             gameSim(Chat, Name, Pids, false, PlayerCount, Indexes);
         {new_pid, Username, Pid, PlayerNum} -> % add a new pid to the game     
             NewPids = maps:put(Pid, {true, Username, #{}}, Pids),
-            Index = maps:size(NewPids),
-            Indexes1 = maps:put(Pid, {Index,true}, Indexes),
-            Pid ! {start_pos, Index},
+            Count = maps:size(NewPids),
+            Pid ! {start_pos, Count},
             %io:format("Index is currently ~p\n", [Index]),
-            if Index == PlayerNum ->
+            if Count == PlayerNum ->
                 io:format("All players joined\n"),
-                GameProcMe = self(),
-                spawn(fun() -> gameTick(GameProcMe) end),
-                gameSim(Chat, Name, NewPids, Countdown, PlayerNum, Indexes1);
+                self() ! {loading},
+                gameSim(Chat, Name, NewPids, Countdown, PlayerNum, Indexes);
             true ->
-                gameSim(Chat, Name,NewPids, Countdown, PlayerNum, Indexes1)
+                gameSim(Chat, Name,NewPids, Countdown, PlayerNum, Indexes)
             end;
+        {loading} -> 
+            %% safety loading to make sure all players threads are running and gameStates have been updated
+            %% also the loading screen should be displayed because it took effort to make it
+            planets_manager ! {launch_planets,Indexes},
+            io:format("Loading\n"),
+            timer:sleep(3000),
+            GameProcMe = self(),
+            spawn(fun() -> gameTick(GameProcMe) end),
+            gameSim(Chat, Name, Pids, Countdown, PlayerCount, Indexes);
         {send_message, Pid, Message} -> % sends message to all players
             Chat ! {new_message, Pid, Message},
             gameSim(Chat, Name, Pids, Countdown, PlayerCount, Indexes);
@@ -214,17 +239,17 @@ send_states(States,Indexes) ->
     lists:foreach(fun(Key) -> 
         State = {Alive,_,_} = maps:get(Key, States),
         case Alive of
-            false ->
-                ok;
             true ->                        
-                {_,_,{_,Boost,{Pos,_,_,Angle},_}} = State,
+                {_,Username,{_,Boost,{Pos,_,_,Angle},_}} = State,
                 {Index,_} = maps:get(Key, Indexes),
-                RelevantData = [Index,Boost,Pos#pvector.x,Pos#pvector.y,Angle],
-                FormattedData = io_lib:format("pos~w@@@~w@@@~w@@@~w@@@~w\n", RelevantData),
+                RelevantData = [Index,Username,Boost,Pos#pvector.x,Pos#pvector.y,Angle],
+                FormattedData = io_lib:format("pos~w@@@~w@@@~w@@@~w@@@~w@@@~w\n", RelevantData),
                 StringData = lists:flatten(FormattedData),
                 lists:foreach(fun(Key2) ->
                     ?SEND_MESSAGE(Key2, StringData)
-                end, LoopStates)
+                end, LoopStates);
+            _ ->
+                ok
             end
     end, LoopStates).
 
@@ -278,21 +303,30 @@ generate_pairs([Pid | Rest], Acc) ->
 
 planets_manager(GameProc, PlanetStates) ->
     receive
-        {launch_planets} ->
+        {launch_planets, Indexes} ->
             RandInt = rand:uniform(2), % 1 to 2
             PlanetCount = 2 + RandInt, % 3 to 4 planets in total
             StartPlanetStates = launch_planets(PlanetCount,PlanetStates),
-            self() ! {pre_calc, StartPlanetStates},
-            % Send planet states to all players - confirm that the client can't simply emulate this
+            io:format("Indexes Keys ~p\n", [maps:keys(Indexes)]),
+            lists:foreach(fun(Key) ->
+                lists:foreach(fun(PlanetKey) ->
+                    {Pos,Vel} = maps:get(PlanetKey, StartPlanetStates),
+                    FormattedData = io_lib:format("p~w@@@~w@@@~w@@@~w@@@~w\n", [PlanetKey,Pos#pvector.x,Pos#pvector.y,Vel#pvector.x,Vel#pvector.y]),
+                    StringData = lists:flatten(FormattedData),
+                    ?SEND_MESSAGE(Key, StringData)
+                end, maps:keys(StartPlanetStates))
+            end, maps:keys(Indexes)),
+            % Send planet states to all players - confirm that the client can't simply emulate this from here on
             planets_manager(GameProc, StartPlanetStates);
         {tick, PlayerStates} ->
-            list:foreach(fun(Key) ->
-                {_,_,{_,_,Pos,_,_},_} = maps:get(Key, PlanetStates),
+            lists:foreach(fun(Key) ->
+                {_,_,{_,_,{Pos,_,_,_},_}} = maps:get(Key, PlayerStates),
                 Died = planet_collision(Pos, PlanetStates),
-                if Died -> 
-                    GameProc ! {died, Key};
-                false ->
-                    ok
+                case Died of
+                    true ->
+                        GameProc ! {died, Key};
+                    _ ->
+                        ok
                 end
             end, maps:keys(PlayerStates)),
             % Check for collisions between players and planets
@@ -309,34 +343,42 @@ planets_manager(GameProc, PlanetStates) ->
 planet_collision(PlayerPos, PlanetStates) ->
     lists:any(fun({Pos, _}) -> 
         Distance = pvector_dist(PlayerPos, Pos),
-        Distance < ?PLANET_RADIUS + 25  %% Planet radius + player radius
+        Distance < ?PLANET_RADIUS + 20  %% Planet radius + (player radius-5) -5 is for helping the player
     end, maps:values(PlanetStates)).
 
-launch_planets(0, PlanetStates) -> PlanetStates;
+launch_planets(0, PlanetStates) -> 
+    PlanetStates;
 launch_planets(Count,PlanetStates) ->    
-    Velocity = #pvector{x=0,y=0},
     SunPos = #pvector{x = 1980/2,y=1080/2},
     XorY = rand:uniform(),   % True for x, false for y  -> variable that decides if the planet will be on the x or y axis
     if XorY > 0.5 ->     % Planet will be positioned horizontally
         LeftOrRight = rand:uniform(), % True for left, false for right
         if LeftOrRight > 0.5 -> % Planet will be positioned on the left
-            X = random_between(-500, SunPos#pvector.x - 500),
-            Location = #pvector{x=X,y=SunPos#pvector.y};
+            X = random_between(-300, SunPos#pvector.x - 300),
+            Location = #pvector{x=X,y=SunPos#pvector.y},
+            VY = random_between(-4, -9),
+            Vel = #pvector{x=0,y=VY};
         true -> % Planet will be positioned on the right
-            X = random_between(SunPos#pvector.x + 500, 1920 + 500),
-            Location = #pvector{x=X,y=SunPos#pvector.y}
+            X = random_between(SunPos#pvector.x + 300, 1920 + 300),
+            Location = #pvector{x=X,y=SunPos#pvector.y},
+            VY = random_between(-4, -9),
+            Vel = #pvector{x=0,y=VY}
         end;
     true -> % Planet will be positioned vertically
         UpOrDown = rand:uniform(), % True for up, false for down
         if UpOrDown > 0.5 -> % Planet will be positioned on the top
-            Y = random_between(-500, SunPos#pvector.y - 500),
-            Location = #pvector{x=1920/2,y=Y};
+            Y = random_between(-300, SunPos#pvector.y - 300),
+            Location = #pvector{x=1920/2,y=Y},
+            VX = random_between(-4, -9),
+            Vel = #pvector{x=VX,y=0};
         true -> % Planet will be positioned on the bottom
-            Y = random_between(SunPos#pvector.y + 500, 1080 + 500),
-            Location = #pvector{x=1920/2,y=Y}
+            Y = random_between(SunPos#pvector.y + 300, 1080 + 300),
+            Location = #pvector{x=1920/2,y=Y},
+            VX = random_between(-4, -9),
+            Vel = #pvector{x=VX,y=0}            
         end
     end,
-    NewPlanetStates = maps:put(Count, {Location, Velocity}, PlanetStates),
+    NewPlanetStates = maps:put(Count, {Location, Vel}, PlanetStates),
     launch_planets(Count - 1, NewPlanetStates).
 
 % Helper function for generating random numbers in a range
@@ -345,4 +387,23 @@ random_between(Min, Max) ->
 
 
 getNextPlanetStates(PlanetStates) ->
-    PlanetStates.
+    NewPlanetStates = 
+        lists:foldl(
+        fun(Key, Acc) ->
+            Planet = maps:get(Key, PlanetStates),
+            NewPlanet = nextPlanetPos(Planet),
+            maps:put(Key, NewPlanet, Acc)
+        end,
+        PlanetStates,
+        maps:keys(PlanetStates)
+    ),
+    NewPlanetStates.
+
+nextPlanetPos({Pos, Vel}) -> %% TODO - ADJUST VALUES MAGNITUDE AND VELOCITY LIMIT
+    SunPos = #pvector{x = 1980/2,y=1080/2},
+    Accel = pvector_sub(SunPos, Pos), % Get the vector from the player to the sun
+    Accel1 = set_magnitude(Accel, 0.08), %% TODO - Change the magnitude after testing, planet should be floating more
+    NewVel = pvector_add(Vel, Accel1),
+    NewLimitedVel = pvector_limit(NewVel, 6), % Planets should be a little slower than the player ? 
+    NewPos = pvector_add(Pos, NewLimitedVel),
+    {NewPos, NewLimitedVel}.

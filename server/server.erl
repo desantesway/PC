@@ -148,12 +148,14 @@ userAuth(Sock, User) ->
                 self()},
                 userAuth(Sock, User);
             [<<?LOGIN_ACCOUNT>>, UserName, Password] ->
+                io:format("logging in ~p\n", [User]),
                 accsProc ! {login, 
                 string:trim(binary_to_list(UserName), trailing), 
                 string:trim(binary_to_list(Password), trailing), 
                 self()},
                 userAuth(Sock, User);
             [<<?LOGOUT_ACCOUNT>>, _] ->
+                io:format("Logging out ~p\n", [User]),
                 accsProc ! {logout, self()},
                 userAuth(Sock, User);
             [<<?JOIN_ROOM>>, Room] ->

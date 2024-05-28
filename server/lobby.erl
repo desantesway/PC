@@ -12,6 +12,7 @@ lobby(Rooms) -> % only logged can create room CHANGE
                 true -> 
                     {_, Lvl, Pids} = maps:get(Room, Rooms),
                     NRooms = maps:put(Room, {CountProc, Lvl, Pids}, Rooms),
+                    io:format("Sending countdown to room ~p~n", [Room]),
                     lists:foreach(fun(Pid) -> ?SEND_MESSAGE(Pid, "res@@@countdown_started\n") end, Pids),
                     lobby(NRooms);
                 false -> 
@@ -95,7 +96,13 @@ lobby(Rooms) -> % only logged can create room CHANGE
                 end
             end,
             RoomsList = maps:fold(Ver, [], Rooms),
-            ?SEND_MUL_MESSAGE(Pid, RoomsList),
+            case length(RoomsList) of
+                0 -> ?SEND_MESSAGE(Pid, "res@@@\n");
+                _ -> 
+                    ?SEND_MESSAGE(Pid, "res"),
+                    lists:foreach(fun(Room) -> ?SEND_MESSAGE(Pid, "@@@" ++ Room) end, RoomsList),
+                    ?SEND_MESSAGE(Pid, "\n")
+            end,
             lobby(Rooms);
         {leave, Room, Pid} -> % jogador tenta sair da sala, se estiver numa
             if Room == "main" ->
@@ -108,6 +115,7 @@ lobby(Rooms) -> % only logged can create room CHANGE
                         if length(Pids) =< 2 ->
                             NRooms = maps:remove(Room, Rooms),
                             ?SEND_MESSAGE(Pid, "res@@@success\n"),
+                            io:format("User ~p left room ~p~n", [Pid, Room]),
                             ?CHANGE_STATE(Pid, {new_room, "main"}),
                             lobby(NRooms);
                         true ->
