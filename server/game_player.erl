@@ -3,7 +3,7 @@
 -include("server.hrl").
 -include("pvectors.hrl").
 
--define(START_POS, [#pvector{x=100,y=100},#pvector{x=1500,y=1000}, #pvector{x=100,y=1000}, #pvector{x=1500,y=100}]). % All possible starting positions for players
+-define(START_POS, [#pvector{x=100,y=100},#pvector{x=1500,y=1000}, #pvector{x=100,y=1000}, #pvector{x=1500,y=100}]). 
 -define(SUN_RADIUS, 135). % Radius of sun
 -define(PLANET_RADIUS, 100). % Radius of planets
 -define(SUN_POS, #pvector{x=1920/2,y=1080/2}). % Position of sun
@@ -12,19 +12,15 @@
 -define(PLAYER_RADIUS, 25).  % Radius of player
 
 start(GameProc, Sock, UserAuth, PlayerNum) -> %PlayerState = {{Name, Level, Lobby, XP}, BoostLeft, {Pos, Velocity, Angle}, Buttons}
-    %io:format("game proc pid ~p\n", [GameProc]),
     {Name, _, _, _} = UserAuth,
     Keys = {false, false, false},
-    %io:format("~p\n", [Keys]),
     Me = self(),
-    %io:format("Sending new_pid to gameProc ~p~p~p\n", [Name,Me,PlayerNum]),
     GameProc ! {new_pid, Name, Me, PlayerNum},
     gamePlayer(GameProc, Sock, {UserAuth, 100, {#pvector{x=0,y=0}, #pvector{x=0,y=0},#pvector{x=0,y=0},0}, Keys},0). 
 
 gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
     receive
         {broadcast, Data} ->
-            %io:format("Sending broadcast ~p\n", [Data]),
             ?SEND_BROADCAST(Sock, Data),
             gamePlayer(GameProc, Sock, PlayerState, PlayerIndex);
         {broadcast_list, Data} ->
@@ -54,8 +50,6 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
         {fpieces, Data} ->
             case Data of
                 {died} ->
-                    io:format("Died ~p\n", [self()]),
-                    ?SEND_BROADCAST(Sock, "game@@@you_died\n"),
                     gamePlayer(GameProc, Sock, PlayerState, PlayerIndex);
                 {unexpected_leave} ->
                     self() ! {fpieces, {end_game}},
@@ -108,6 +102,9 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
                 [<<?LEAVE_CHAT>>, _] -> % sends a chat message
                     GameProc ! {leave_chat, self()},
                     gamePlayer(GameProc, Sock, PlayerState, PlayerIndex);
+                [<<?GO>>, _] ->
+                    GameProc ! {go},
+                    gamePlayer(GameProc, Sock, PlayerState, PlayerIndex);
                 [<<?UP_KEY>>, _] -> % sum about new button pressed (?)
                     {Name, Boost, {Pos, Vel, Acc, Angle}, {UP, LEFT, RIGHT}} = PlayerState,
                     NewKeys = {toggle(UP), LEFT, RIGHT},
@@ -148,10 +145,10 @@ toggle(false) -> true.
 
 %% Initialize a player state with a given index Playerpos
 setupPlayerState(PlayerState, Playerpos) -> % I need the player position. Player 1 gets position #1 ... Player 4 gets position #4
-    io:format("Attempting to get playerPos ~p\n", [Playerpos]),
+    io:format("Attempting to get playerState ~p\n", [PlayerState]),
     InitialPos = lists:nth(Playerpos, ?START_POS),
     Vec = #pvector{x = 0.0, y = 0.0},
-    KeyMap = {false, true, false}, %default keymap {up,left,right}
+    KeyMap = {false, false, false}, %default keymap {up,left,right}
     {Name, _, _, _} = PlayerState,
     PlayerState1 = {Name, 100,   {InitialPos,   Vec,        Vec,       0},   KeyMap},
     %             {Username?, Boost,  {{PX,PY},   {VX,VY}  ,{AccX,AccY}, Angle}, Keys}
@@ -178,7 +175,7 @@ getNextPos(PlayerState) ->
                     Boost_ = Boost - 1;                                                    % Add the key acceleration to the angle movement
                 _ -> 
                     Acc_ = KeyAccel,
-                    Boost_ = Boost - 1
+                    Boost_ = Boost
                     
             end,
             case LEFT of
@@ -189,7 +186,7 @@ getNextPos(PlayerState) ->
                     Boost__ = Boost_ - 1;
                 _ ->
                     Acc__ = Acc_,
-                    Boost__ = Boost_ - 1
+                    Boost__ = Boost_
             end,
             case RIGHT of
                 true ->
@@ -199,7 +196,7 @@ getNextPos(PlayerState) ->
                     Boost___ = Boost__ - 1;
                 _ ->
                     Acc___ = Acc__,
-                    Boost___ = Boost__ - 1
+                    Boost___ = Boost__
             end
     end,
     

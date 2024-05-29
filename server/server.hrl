@@ -35,3 +35,4 @@
 -define(CHAT_MESSAGE, "14").
 -define(LEAVE_CHAT, "15").
 -define(RANKING, "16").
+-define(GO, "17").

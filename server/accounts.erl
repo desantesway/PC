@@ -5,7 +5,7 @@
 start(Accs, Lvl) -> accounts(maps:new(), Accs, Lvl).
 
 accounts(SPids, Accs, Lvl) ->
-    io:format("Accounts ~p~n ~p~n ~p~n", [SPids, Accs, Lvl]),
+    %%io:format("Accounts ~p~n ~p~n ~p~n", [SPids, Accs, Lvl]),
     receive
         {save_acc, DAccs} -> 
             offProc ! {full_save, "accounts.bin", DAccs},
