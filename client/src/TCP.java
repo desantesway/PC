@@ -41,12 +41,16 @@ public class TCP {
             String res;
             try {
                 while((res = in.readLine()) != null) {
+                  try {
                     String[] task = res.split("@@@",2); // Split into <Task type> , <Task>
                     Queue<String> tasks = this.taskMap.get(task[0]); // get the Queue from the HashMap
                     synchronized (tasks) { // Add the task to the Queue and notify main thread
                         tasks.add(task[1]); 
                         tasks.notify();   // Notify worker thread waiting on this queue
                     }
+                  } catch (Exception e) {
+                      System.out.println("Failed start");
+                  }
                 }
             } catch (IOException e) {
                 System.out.println("Failed to get message - postman.");

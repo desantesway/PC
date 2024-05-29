@@ -3,44 +3,52 @@ class Planet {
   int imageCount;
   int counter;
   float radius = 100f;
+  PVector pos, vel;
+  float topspeed = 6f;
+  PVector sunPos = new PVector(displayWidth/2,displayHeight/2);
   ArrayList<PVector> trajectory = new ArrayList<PVector>();
-    
-  Planet(String model, int imageCount) {
+  boolean registered;
+  
+  Planet() {
+    this.registered = false;
+  }
+  
+  Planet(String model, int imageCount, float x, float y, float vx, float vy) {
+    this.pos = new PVector(x,y);
+    this.vel = new PVector(vx,vy);
     this.imageCount = imageCount;
     images = new PImage[imageCount];
 
     for (int i = 0; i < imageCount;i++){
-      String filename = model + "_" + nf(i,5)+ ".png"; //!!!!!!!!!!!!
+      String filename = "planets/"+ model + "_" + i + ".png"; //!!!!!!!!!!!!
 
       images[i] = loadImage(filename);
       images[i].resize((int)radius,(int)radius);
     }
-    
-    generateBezierTrajectory();
+    this.registered = true;
+    println("I really did made him");
   }
   
-  void generateBezierTrajectory() {
-    //boolean side = random(0,1) > 0.5; // false for left side, true for right side
-    if (true ) {//!side) {
-      float startingY = random(215, displayHeight);
-      int steps = 500;
-      for (int i = 0; i <= steps; i++) {
-        PVector pos = new PVector();
-        float t = i / float(steps);
-        pos.x =  bezierPoint(0, displayWidth/10, displayWidth/1.2, displayWidth+100, t);
-        pos.y = bezierPoint(startingY, 200, 300, displayHeight, t);
-        trajectory.add(pos);
-      }
-    }
+  boolean getStatus() {
+    return this.registered;
+  }
+ 
+ 
+ PVector getPos() {
+   return this.pos;
+ }
+  void update() {
+     
+    PVector acceleration = PVector.sub(sunPos, pos);
+    acceleration.setMag(0.05);
+    vel.add(acceleration);
+    // Limit the velocity by topspeed
+    vel.limit(topspeed);
+    // Location changes by velocity
+    pos.add(vel);
   }
  
   void display() {
-    
-    counter++;
-    counter = counter % trajectory.size();
-    PVector pos = trajectory.get(counter);    
     image(images[0],pos.x,pos.y);
-
-
   }
 }
