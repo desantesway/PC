@@ -1,8 +1,10 @@
 # PC
 
 > TODO
-- game_sim (erlang
-- > Player Collisions
+- game_sim - done
+- > Player Collisions - todo
 
 > Client TODO:
-- Update state by reading from GameState class 
+- Fix post-game - back to menu 
+- Set all boolean flags back to normal
+- Implement chatrooms
