@@ -32,7 +32,8 @@
 -define(UP_KEY, "11").
 -define(RIGHT_KEY, "12").
 -define(LEFT_KEY, "13").
--define(CHAT_MESSAGE, "14").
--define(LEAVE_CHAT, "15").
--define(RANKING, "16").
--define(GO, "17").
+-define(DOWN_KEY, "14").
+-define(CHAT_MESSAGE, "15").
+-define(LEAVE_CHAT, "16").
+-define(RANKING, "17").
+-define(GO, "18").

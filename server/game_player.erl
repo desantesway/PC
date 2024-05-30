@@ -5,18 +5,17 @@
 
 -define(START_POS, [#pvector{x=100,y=100},#pvector{x=1500,y=1000}, #pvector{x=100,y=1000}, #pvector{x=1500,y=100}]). 
 -define(SUN_RADIUS, 135). % Radius of sun
--define(PLANET_RADIUS, 100). % Radius of planets
 -define(SUN_POS, #pvector{x=1920/2,y=1080/2}). % Position of sun
--define(TOP_SPEED, 10). % Maximum speed of player
--define(ACCEL_MAG, 0.1). % Magnitude of acceleration
+-define(TOP_SPEED, 12). % Maximum speed of player
+-define(ACCEL_MAG, 0.06). % Magnitude of acceleration
 -define(PLAYER_RADIUS, 25).  % Radius of player
 
 start(GameProc, Sock, UserAuth, PlayerNum) -> %PlayerState = {{Name, Level, Lobby, XP}, BoostLeft, {Pos, Velocity, Angle}, Buttons}
     {Name, _, _, _} = UserAuth,
-    Keys = {false, false, false},
+    Keys = {false, false, false,false},
     Me = self(),
     GameProc ! {new_pid, Name, Me, PlayerNum},
-    gamePlayer(GameProc, Sock, {UserAuth, 100, {#pvector{x=0,y=0}, #pvector{x=0,y=0},#pvector{x=0,y=0},0}, Keys},0). 
+    gamePlayer(GameProc, Sock, {UserAuth, 10000, {#pvector{x=0,y=0}, #pvector{x=0,y=0},#pvector{x=0,y=0},0}, Keys},0). 
 
 gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
     receive
@@ -106,20 +105,25 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
                     GameProc ! {go},
                     gamePlayer(GameProc, Sock, PlayerState, PlayerIndex);
                 [<<?UP_KEY>>, _] -> % sum about new button pressed (?)
-                    {Name, Boost, {Pos, Vel, Acc, Angle}, {UP, LEFT, RIGHT}} = PlayerState,
-                    NewKeys = {toggle(UP), LEFT, RIGHT},
+                    {Name, Boost, {Pos, Vel, Acc, Angle}, {UP, DOWN, LEFT, RIGHT}} = PlayerState,
+                    NewKeys = {toggle(UP), DOWN, LEFT, RIGHT},
                     NewPlayerState = {Name, Boost, {Pos, Vel, Acc, Angle}, NewKeys},
                     % as if the calculations made the player die;
                     %GameProc ! {died, self()}, % !!!! ONLY FOR TESTING DEATH/XP this is supposed to be handled by the game_sim, not the player
                     gamePlayer(GameProc, Sock, NewPlayerState, PlayerIndex);
                 [<<?RIGHT_KEY>>, _] -> % sum about new button pressed (?)
-                    {Name, Boost, {Pos, Vel, Acc, Angle}, {UP, LEFT, RIGHT}} = PlayerState,
-                    NewKeys = {UP, LEFT, toggle(RIGHT)},
+                    {Name, Boost, {Pos, Vel, Acc, Angle}, {UP, DOWN, LEFT, RIGHT}} = PlayerState,
+                    NewKeys = {UP, DOWN, LEFT, toggle(RIGHT)},
                     NewPlayerState = {Name, Boost, {Pos, Vel, Acc, Angle}, NewKeys},
                     gamePlayer(GameProc, Sock, NewPlayerState, PlayerIndex);
                 [<<?LEFT_KEY>>, _] -> % sum about new button pressed (?)
-                    {Name, Boost, {Pos, Vel, Acc, Angle}, {UP, LEFT, RIGHT}} = PlayerState,
-                    NewKeys = {UP, toggle(LEFT), RIGHT},
+                    {Name, Boost, {Pos, Vel, Acc, Angle}, {UP, DOWN, LEFT, RIGHT}} = PlayerState,
+                    NewKeys = {UP, DOWN, toggle(LEFT), RIGHT},
+                    NewPlayerState = {Name, Boost, {Pos, Vel, Acc, Angle}, NewKeys},
+                    gamePlayer(GameProc, Sock, NewPlayerState, PlayerIndex);
+                [<<?DOWN_KEY>>, _] -> 
+                    {Name, Boost, {Pos, Vel, Acc, Angle}, {UP, DOWN, LEFT, RIGHT}} = PlayerState,
+                    NewKeys = {UP, toggle(DOWN), LEFT, RIGHT},
                     NewPlayerState = {Name, Boost, {Pos, Vel, Acc, Angle}, NewKeys},
                     gamePlayer(GameProc, Sock, NewPlayerState, PlayerIndex)
             end;
@@ -143,21 +147,22 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
 toggle(true) -> false;
 toggle(false) -> true.
 
+
 %% Initialize a player state with a given index Playerpos
 setupPlayerState(PlayerState, Playerpos) -> % I need the player position. Player 1 gets position #1 ... Player 4 gets position #4
     io:format("Attempting to get playerState ~p\n", [PlayerState]),
     InitialPos = lists:nth(Playerpos, ?START_POS),
     Vec = #pvector{x = 0.0, y = 0.0},
-    KeyMap = {false, false, false}, %default keymap {up,left,right}
+    KeyMap = {false, false, false,false}, %default keymap {up,left,right}
     {Name, _, _, _} = PlayerState,
-    PlayerState1 = {Name, 100,   {InitialPos,   Vec,        Vec,       0},   KeyMap},
+    PlayerState1 = {Name, 10000,   {InitialPos,   Vec,        Vec,       0},   KeyMap},
     %             {Username?, Boost,  {{PX,PY},   {VX,VY}  ,{AccX,AccY}, Angle}, Keys}
     PlayerState1.
 
 
 getNextPos(PlayerState) ->
     Sunpos = ?SUN_POS,
-    {Name, Boost, {Pos, Vel, Acc, Angle}, {UP,LEFT,RIGHT} = KeyMap} = PlayerState,
+    {Name, Boost, {Pos, Vel, _, _}, {UP,DOWN,LEFT,RIGHT} = KeyMap} = PlayerState,
     AccMag = ?ACCEL_MAG,
     Topspeed = ?TOP_SPEED,
     Accel = pvector_sub(Sunpos, Pos), % Get the vector from the player to the sun
@@ -165,47 +170,62 @@ getNextPos(PlayerState) ->
     KeyAccel = #pvector{x=0,y=0},
     case Boost of
         0 -> 
-            Acc___ = KeyAccel,
-            Boost___ = 0;
+            Acc____ = KeyAccel,
+            Boost____ = 0;
         _ -> 
             case UP of
                 true -> 
-                    AngleMovement = #pvector{x=math:cos(Angle) * 0.2, y = math:sin(Angle)*0.2},  % Calculate velocity vector for a given angle
-                    Acc_ = pvector_add(KeyAccel, AngleMovement),
-                    Boost_ = Boost - 1;                                                    % Add the key acceleration to the angle movement
+                    Mov = #pvector{x=0, y = -0.2},  % Calculate velocity vector for a given angle
+                    Acc_ = pvector_add(KeyAccel, Mov), % Add the key acceleration to the angle movement
+                    Boost_ = Boost - 1;                                                   
                 _ -> 
                     Acc_ = KeyAccel,
                     Boost_ = Boost
                     
             end,
+            case DOWN of 
+                true -> 
+                    Mov3 = #pvector{x=0, y = 0.2},  % Calculate velocity vector for a given angle
+                    Acc__ = pvector_add(Acc_, Mov3), % Add the key acceleration to the angle movement
+                    Boost__ = Boost_ - 1;
+                _ -> 
+                    Acc__ = Acc_,
+                    Boost__ = Boost_
+            end,
             case LEFT of
                 true ->
                     % Calculate velocity vector for a given angle
-                    AngleMovement1 = #pvector{x=math:cos(Angle + math:pi()/2) * 0.2, y = math:sin(Angle + math:pi()/2) * 0.2},
-                    Acc__ = pvector_add(Acc, AngleMovement1), % Add the key acceleration to the angle movement
-                    Boost__ = Boost_ - 1;
+                    %AngleMovement1 = #pvector{x=math:cos(Angle + math:pi()/2) * 0.1, y = math:sin(Angle + math:pi()/2) * 0.1},
+                    %Acc__ = pvector_add(Acc, AngleMovement1), % Add the key acceleration to the angle movement
+                    %Boost__ = Boost_ - 1;
+                    Mov1 = #pvector{x=-0.2, y = 0},
+                    Boost___ = Boost__ - 1,
+                    Acc___ = pvector_add(Acc__, Mov1);
                 _ ->
-                    Acc__ = Acc_,
-                    Boost__ = Boost_
+                    Acc___ = Acc__,
+                    Boost___ = Boost__
             end,
             case RIGHT of
                 true ->
                     % Calculate velocity vector for a given angle
-                    AngleMovement2 = #pvector{x=math:cos(Angle - math:pi()/2) * 0.2, y = math:sin(Angle - math:pi()/2) * 0.2},
-                    Acc___= pvector_add(Acc, AngleMovement2), % Add the key acceleration to the angle movement
-                    Boost___ = Boost__ - 1;
+                    %AngleMovement2 = #pvector{x=math:cos(Angle - math:pi()/2) + 0.1, y = math:sin(Angle - math:pi()/2) + 0.1},
+                    %Acc___= pvector_add(Acc, AngleMovement2), % Add the key acceleration to the angle movement
+                    %Boost___ = Boost__ - 1;
+                    Mov2 = #pvector{x=0.2, y = 0},
+                    Acc____ = pvector_add(Acc___, Mov2),
+                    Boost____ = Boost___ - 1;
                 _ ->
-                    Acc___ = Acc__,
-                    Boost___ = Boost__
+                    Acc____ = Acc___,
+                    Boost____ = Boost___
             end
     end,
     
-    FinalAccel = pvector_add(Accel1, Acc___), % Add the key acceleration to the angle movement
+    FinalAccel = pvector_add(Accel1, Acc____), % Add the key acceleration to the angle movement
     Velocity = pvector_add(FinalAccel, Vel), % Finally, add accel to velocity
     LimitVel = pvector_limit(Velocity, Topspeed), % Limit the velocity to the top speed
     NewPos = pvector_add(LimitVel, Pos), % Add velocity to position
 
-    NewPlayerState = {Name, Boost___, {NewPos, LimitVel, FinalAccel, Angle}, KeyMap},
+    NewPlayerState = {Name, Boost____, {NewPos, LimitVel, FinalAccel, 0}, KeyMap},
     NewPlayerState.
 
 
