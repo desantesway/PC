@@ -1,10 +1,15 @@
 
-import java.io.IOException;
 
 
 public class Worker extends Thread {
     public TCP tcp;
     public GameState gameState;
+    public ChatRoom chat;
+
+    public Worker(TCP tcp, ChatRoom chat) {
+        this.tcp = tcp;
+        this.chat = chat;
+    }
     public Worker(TCP tcp, GameState gameState) {
         this.tcp = tcp;
         this.gameState = gameState;
@@ -77,7 +82,20 @@ class GameWorker extends Worker {
         String res;
         try {
             while((res = this.tcp.receive("game")) != null) {
-                switch (res) {
+                String msg[] = res.split("@@@");
+                System.out.println(msg[0]);
+                if (msg.length > 1) {
+                  if (msg[1].equals("died")) {
+                    try {
+                      this.gameState.l.readLock().lock();
+                      this.gameState.setDeath(msg[0]);
+                    } finally {
+                      this.gameState.l.readLock().unlock();
+                    } 
+                }
+                } else {
+                  
+                switch (msg[0]) {
                     case "countdown_start":
                         try{
                           this.gameState.l.readLock().lock();
@@ -87,20 +105,66 @@ class GameWorker extends Worker {
                         }
                         break;
                     case "countdown_end":
-                    try{
-                        this.gameState.l.readLock().lock();
-                        this.gameState.setCountdown(false);
-                    } finally {
-                      this.gameState.l.readLock().unlock();
-                    }
+                        try{
+                            this.gameState.l.readLock().lock();
+                            this.gameState.setCountdown(false);
+                        } finally {
+                          this.gameState.l.readLock().unlock();
+                        }
                         break;
+                    case "won_game":
+                        try{
+                            this.gameState.l.readLock().lock();
+                            this.gameState.setWon();
+                        } finally {
+                          this.gameState.l.readLock().unlock();
+                        }                      
+                        break;
+                    case "lost_game":
+                        try{
+                            this.gameState.l.readLock().lock();
+                            this.gameState.setLost();
+                        } finally {
+                          this.gameState.l.readLock().unlock();
+                        }                      
+                        break;                      
                     default:
                         break;
                     
+                }
                 }
             }
         } catch (Exception e) {
           e.printStackTrace();
         }
     }
+}
+
+class ChatWorker extends Worker {
+
+  public ChatWorker(TCP tcp, ChatRoom chat) {
+      super(tcp,chat);
+  }
+
+  public void run() {
+      String res;
+      try {
+          while((res = this.tcp.receive("chat")) != null) {
+              String[] msg = res.split("@@@");
+              try {
+                this.chat.l.readLock().lock();
+                if (msg[0].equals("msg")) {      // msg@@@username@@@message
+                  this.chat.addMessage(msg[1], msg[2]);
+                } else if (msg[0].equals("leave")) { // get
+                  this.chat.addMessage("", msg[1] + " has left the chat");
+                }
+                
+              } finally {
+                this.chat.l.readLock().unlock();
+              }
+          }
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+  }
 }

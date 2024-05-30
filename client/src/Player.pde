@@ -53,6 +53,10 @@ class Player {
     this.y = y;
   }
   
+  void setUsername(String user) {
+    this.username = user;
+  }
+  
   void setVelocity(PVector vel) { // Possibly unused
     this.velocity = vel;
   }
@@ -63,13 +67,20 @@ class Player {
   
   void display() { //!!!!!!!!!!!!!
     PVector v1 = new PVector(300, displayHeight/2) ;
-
+    pushMatrix();
+    textFont(campus, 25);
+    translate(17,65);
+    text(this.username, x, y);
+    popMatrix();
+    line(x,y,((x+30)*cos(angle)), ((y+30)*sin(angle)));
     image(PlayerImg, this.x, this.y);
     pushMatrix();
     translate(x+25, y+25);
     PVector direction = PVector.sub(sunPos, new PVector(x,y));
     rotate(PI+atan2(direction.y, direction.x));
     image(ShadowImg, 0, -25); // rotate in relation of sun position
+    
+
     popMatrix();
   }
 }

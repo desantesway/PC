@@ -2,11 +2,11 @@ class Planet {
   PImage[] images;
   int imageCount;
   int counter;
+  
   float radius = 100f;
   PVector pos, vel;
-  float topspeed = 6f;
+  float topspeed = 5f;
   PVector sunPos = new PVector(displayWidth/2,displayHeight/2);
-  ArrayList<PVector> trajectory = new ArrayList<PVector>();
   boolean registered;
   
   Planet() {
@@ -20,27 +20,28 @@ class Planet {
     images = new PImage[imageCount];
 
     for (int i = 0; i < imageCount;i++){
-      String filename = "planets/"+ model + "_" + i + ".png"; //!!!!!!!!!!!!
+      String filename = "planets/"+model + "_" + i + ".png"; //!!!!!!!!!!!!
 
       images[i] = loadImage(filename);
       images[i].resize((int)radius,(int)radius);
     }
     this.registered = true;
-    println("I really did made him");
+    println("I really made him");
   }
   
   boolean getStatus() {
     return this.registered;
   }
- 
- 
- PVector getPos() {
-   return this.pos;
- }
+  
+  void setPosVel(float x, float y, float vx, float vy) {
+    this.pos = new PVector(x,y);
+    this.vel = new PVector(vx,vy);
+  }
+  
   void update() {
      
     PVector acceleration = PVector.sub(sunPos, pos);
-    acceleration.setMag(0.05);
+    acceleration.setMag(0.03);
     vel.add(acceleration);
     // Limit the velocity by topspeed
     vel.limit(topspeed);
@@ -49,6 +50,6 @@ class Planet {
   }
  
   void display() {
-    image(images[0],pos.x,pos.y);
+    image(images[0],pos.x-5,pos.y-10);
   }
 }

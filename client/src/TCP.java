@@ -43,6 +43,9 @@ public class TCP {
                 while((res = in.readLine()) != null) {
                   try {
                     String[] task = res.split("@@@",2); // Split into <Task type> , <Task>
+                    if (task[0].equals("chat")) {
+                      System.out.println("Chat msg received.");
+                    }
                     Queue<String> tasks = this.taskMap.get(task[0]); // get the Queue from the HashMap
                     synchronized (tasks) { // Add the task to the Queue and notify main thread
                         tasks.add(task[1]); 

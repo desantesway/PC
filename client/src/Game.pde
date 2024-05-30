@@ -18,10 +18,11 @@ private static final int LIST_ROOMS = 10;
 private static final int UP_KEY = 11;
 private static final int RIGHT_KEY = 12;
 private static final int LEFT_KEY = 13;
-private static final int CHAT_MESSAGE = 14;
-private static final int LEAVE_CHAT = 15;
-private static final int RANKING = 16;
-private static final int GO = 17;
+private static final int DOWN_KEY = 14;
+private static final int CHAT_MESSAGE = 15;
+private static final int LEAVE_CHAT = 16;
+private static final int RANKING = 17;
+private static final int GO = 18;
 
 enum State {
     MENU,
@@ -31,7 +32,8 @@ enum State {
     LOBBY,
     ROOM_CREATION,
     GAME,
-    LOADING
+    LOADING,
+    GAME_END
 }
 
 /* SANDBOX CLIENT WITH NO SERVER COMMUNICATION FOR GRAPHICS / MENU FLOW TESTING */
@@ -39,9 +41,10 @@ enum State {
 boolean isLoggedIn = false;
 TCP tcp;
 GameState gameState;
+ChatRoom chat;
 Worker[] workers;
 State state;
-Menu startMenu, loginMenu, registerMenu, playMenu, lobbyMenu, roomCreationMenu;
+Menu startMenu, loginMenu, registerMenu, playMenu, lobbyMenu, roomCreationMenu, gameEnd;
 Lobby roomLobby;
 float sun_radius = 200f;
 Animation sun;
@@ -73,6 +76,8 @@ float translateStarsBlured = 0; //!!!!!!!!!!!!!
 
 boolean gameStarted = false;
 boolean goSignal = false;
+boolean won,lost;
+
  
 
 void setup() {
@@ -93,6 +98,7 @@ void setup() {
   nightcore = createFont("fonts/Satoshi-Variable.ttf", 100);
   campus = createFont("fonts/Satoshi-Variable.ttf", 50);
   // Initialize menus 
+  
   startMenu = new Menu();
   initializeStartMenu();
   loginMenu = new Menu();
@@ -103,6 +109,8 @@ void setup() {
   initializePlayMenu();
   roomCreationMenu = new Menu();
   initializeRoomCreationMenu();
+  gameEnd = new Menu();
+  initializeGameEndMenu();
   roomLobby = new Lobby();
   //println(displayWidth, displayHeight);
   backgroundImg = loadImage("background/bg.png"); //!!!!!!!!!!!!!!!!!!
@@ -137,46 +145,14 @@ void setup() {
   
   // Create a new Animation of the Sun
   sun = new Animation("sun",91);
-  // Create a new instance of Player -- TODO - Maybe delay this until player actually gets in the game ? Not sure if it makes a difference
-  
-  // Add players -- TODO
-  //Planet planet1 = new Planet("planet1", 1);
-  //planets.add(planet1);
-  
-  // Initialize the keyMap for player input -- this probably will not be used
-  keyMap.put('w', false); // W -> false (not pressed)
-  keyMap.put('a', false); // A -> false (not pressed)
-  keyMap.put('s', false); // S -> false (not pressed)
-  keyMap.put('d', false); // D -> false (not pressed)
-  
   smooth(8);
-  
-  /*
-  Initialize universe scenery contained within the rings array
-  */
-  /*
-  float outerRad = 2000f, increment = 100f;
-  for(int ringIndex = 0 ; ringIndex < 50 ; ringIndex++){
-    PShape ring = createShape();
-    ring.setStrokeWeight(random(1f,8f));
-    ring.beginShape(POINTS);
-    ring.stroke(random(170,255), random(170,255), random(170,255));
-    for(int starIndex = 0 ; starIndex < 100 ; starIndex++){
-      float a = random(0f, 1f) * TWO_PI;
-      float r = sqrt(random(sq(sun_radius)+100, sq(outerRad)*10));
-      ring.vertex(r * cos(a), r* sin(a),  60 * random(-increment, increment));
-    }
-    ring.endShape();
-    rings.add(ring);
-  }*/
-  
-  
   ellipseMode(RADIUS);
   frameRate(60);
 }
 void initializeWorkers() {
   gameState = new GameState();
-  this.workers = new Worker[9]; // 4 players - 4 planets - 1 Game worker
+  chat = new ChatRoom();
+  this.workers = new Worker[10]; // 4 players - 4 planets - 1 Game worker
   this.workers[0] = new PosWorker(this.tcp, this.gameState, "1");
   this.workers[0].start();
   this.workers[1] = new PosWorker(this.tcp, this.gameState, "2");
@@ -195,12 +171,14 @@ void initializeWorkers() {
   this.workers[7].start();
   this.workers[8] = new GameWorker(this.tcp, this.gameState);
   this.workers[8].start();
+  this.workers[9] = new ChatWorker(this.tcp, this.chat);
+  this.workers[9].start();
   
 }
 
 void initializeRoomCreationMenu() {
   Button createBtn = new Button("create", displayWidth/2 - 1263/2 - 100, displayHeight/2 + 385/2); 
-  Button exitBtn = new Button("exit", displayWidth/2 + 100 , displayHeight/2 + 385/2);
+  Button exitBtn = new Button("exit", displayWidth/2 + 100 , displayHeight/2 + 300);
   roomCreationMenu.addButton(createBtn);
   roomCreationMenu.addButton(exitBtn);
   
@@ -272,6 +250,12 @@ void initializePlayMenu() {
   
 }
 
+void initializeGameEndMenu() {
+  Button exitBtn = new Button("exit", displayWidth / 2 - 1263/4, 75+50+385/2);
+  gameEnd.addButton(exitBtn);
+}
+
+
   // Key pressed method
   void keyPressed() {
     switch(state) {
@@ -294,6 +278,12 @@ void initializePlayMenu() {
           } catch (Exception e) {
             println("Couldn't left.");
           }
+        } else if ((key == CODED && key == DOWN) || key == 's' || key == 'S') {
+          try {
+            this.tcp.send(DOWN_KEY, "");
+        } catch (Exception e) {
+          println("Couldn't down");
+        }
         }
         break;
       case LOGIN:
@@ -347,6 +337,12 @@ void initializePlayMenu() {
           } catch (Exception e) {
             println("Couldn't left.");
           }
+        } else if ((key == CODED && key == DOWN) || key == 's' || key == 'S') {
+          try {
+            this.tcp.send(DOWN_KEY, "");
+          } catch (Exception e) {
+            println("Couldn't left.");
+          }
         }
         break;
       default:
@@ -377,6 +373,8 @@ void mousePressed() {
       break;
     case GAME:
       me = new Player();
+    case GAME_END:
+      checkGameEndButtons();
     default:
       break;
   }
@@ -410,6 +408,18 @@ void checkRoomCreationButtons() {
           break;
       }
       break;
+    }
+  }
+}
+
+void checkGameEndButtons() { // TODO - check this works
+  for(Button b: gameEnd.getButtons()) {
+    if (b.isClicked()) {
+      won = false;
+      lost = false;
+      gameStarted = false;
+      goSignal = false;
+      state = State.PLAY;
     }
   }
 }
@@ -491,16 +501,11 @@ boolean authBrowseRooms() {
   try {
     this.tcp.send(LIST_ROOMS,"");
     res = this.tcp.receive("res");
-    println(res);
   } catch (IOException | InterruptedException e) {
     println("Failed");
   }
   if (!res.equals("")) {
-    println(res);
     String[] temp = res.split("@@@");
-    for(int i =0; i<temp.length;i++) {
-      println(temp[i]);
-    }
     roomLobby.refresh(temp);  
   }
   else {
@@ -543,7 +548,6 @@ boolean authCreateRoom() {
   } catch(Exception e) {
     println("Failed room creation due to exception");
   }
-  println(res);
   return res.equals(success);
   
 }
@@ -580,7 +584,6 @@ boolean authLogin() {
   } catch(Exception e) {
     println("Failed auth");
   }
-  println(res);
   if(!res.equals(success)) {
     errorMsg = res;
     return false;
@@ -707,16 +710,14 @@ void drawPlayer() {
       me.display();
   } else {
       textFont(nightcore);
-      text("YOU LOST", 650, displayHeight/2-200); 
+      text("YOU LOST", 700, displayHeight/2-150); 
     }
  players.forEach((Key, player) -> player.display());
 }
 
 
 void drawPlanets() {
-  println(planets.entrySet().toString());
   planets.forEach((Key,p) -> {
-    p.update();
     p.display();
   });
 }
@@ -839,18 +840,21 @@ void initializeGameState() {
       String name = entry.getKey();  
       float[] posAngle = entry.getValue();
       if (name.equals(username)) {
+        me.setUsername(name);
         me.setPos(posAngle[0], posAngle[1]);
         me.setAngle(posAngle[2]);          
       } else {
-        println("Initializing player " + name);
         if (!p1.getStatus()){
             p1 = new Player(posAngle[0], posAngle[1], posAngle[2], name);
+            p1.setUsername(name);
             players.put(name,p1);
         } else if (!p2.getStatus()) {
             p2 = new Player(posAngle[0], posAngle[1], posAngle[2], name);
+            p2.setUsername(name);
             players.put(name,p2);
         } else if (!p3.getStatus()) {
             p3 = new Player(posAngle[0], posAngle[1], posAngle[2], name);
+            p3.setUsername(name);
             players.put(name,p3);
         }
       }    
@@ -862,15 +866,12 @@ void initializeGameState() {
             pl1 = new Planet("planet1",1,posVel[0], posVel[1], posVel[2], posVel[3]);
             planets.put(planetIndex,pl1);
         } else if (!pl2.getStatus()) {
-          println("Initialized pl2");
             pl2 = new Planet("planet2",1,posVel[0], posVel[1], posVel[2], posVel[3]);
             planets.put(planetIndex,pl2);
         } else if (!pl3.getStatus()) {
-          println("Initialized pl3");
             pl3 = new Planet("planet3",1,posVel[0], posVel[1], posVel[2], posVel[3]);
             planets.put(planetIndex,pl3);
         } else if (!pl4.getStatus()) {
-          println("Initialized pl4");
             pl4 = new Planet("planet4",1,posVel[0], posVel[1], posVel[2], posVel[3]);
             planets.put(planetIndex,pl4);          
         }
@@ -888,23 +889,71 @@ void updateGameState() {
     gameState.l.writeLock().unlock();  // free the lock asap
   }
   if (copy != null) {
-    Map<String, float[]> pos = copy.getPos();
+    if (copy.won) {
+      won = true;
+      state = State.GAME_END;
+    } else if (copy.lost) {
+      lost = true;
+      state = State.GAME_END;
+    } else {
+    Set<String> deaths = copy.deaths;
+    if (deaths.isEmpty());
+    else {
+      for(String death : deaths) {
+        if (death.equals(username)) {
+          me = null;
+        } else if (players.containsKey(death)) {
+          players.remove(death);
+        }
+      }
+    }
+    Map<String, float[]> pos = copy.positions;
+    Map<String, float[]> pls = copy.planets;
     for (Map.Entry<String, float[]> entry : pos.entrySet()) {
       String name = entry.getKey();  
       float[] posAngle = entry.getValue();
       if (name.equals(username)) {
-        me.setPos(posAngle[0], posAngle[1]);
-        me.setAngle(posAngle[2]);          
+        if (me != null) {
+          me.setPos(posAngle[0], posAngle[1]);
+          me.setAngle(posAngle[2]);     
+        }
       }else {
          Player e = players.get(name);
          e.setPos(posAngle[0], posAngle[1]);
          e.setAngle(posAngle[2]);
-          
        }
       }
-    }
+   for (Map.Entry<String, float[]> e : pls.entrySet()) {
+        String planetIndex = e.getKey();
+        float[] posVel = e.getValue();
+        Planet pl = planets.get(planetIndex);
+        //println("Setting pl"+planetIndex+" with ("+ Float.valueOf(posVel[0]) +","+ Float.valueOf(posVel[1])+"," +Float.valueOf(posVel[2])+","+ Float.valueOf(posVel[3])+")");
+        pl.setPosVel(posVel[0], posVel[1], posVel[2], posVel[3]);
+      }
   } 
+  }
+}
 
+void displayResultText() {
+  if (lost) {
+    text("YOU LOST...", 700, displayHeight/2-150); 
+  } else {
+    text("YOU WON!", 700, displayHeight/2-150); 
+  }
+  ChatRoom copy = null;
+  chat.l.writeLock().lock();
+  try {
+    copy = this.chat.copy();
+  } finally { 
+    chat.l.writeLock().unlock();  // free the lock asap
+  }
+  if (copy != null) {
+    List<String> result = chat.getMessages();
+    for(int i = 0; i < result.size(); i++) {
+      text(result.get(i), 600, displayHeight/2 + (100 * i));
+    }
+  }
+}
 
 void draw() {
   
@@ -979,7 +1028,10 @@ void draw() {
       
       drawSun();
       break;
-  
+    case GAME_END:
+      gameEnd.drawMenu();
+      displayResultText();
+      break;
   }
   //println(frameRate);
 }

@@ -8,7 +8,7 @@ class Animation {
     images = new PImage[imageCount];
 
     for (int i = 0; i < imageCount;i++){
-      String filename = "sun/" + model + "_" + nf(i,5)+ ".tga"; //!!!!!!!!!!!!!!!
+      String filename = "sun/compressed/" + model + "_" + nf(i,5)+ ".png"; //!!!!!!!!!!!!!!!
       images[i] = loadImage(filename);
       images[i].resize(int(sun_radius*3),int(sun_radius*3));
     }
