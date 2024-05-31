@@ -1,6 +1,6 @@
 %% PVectors module for vector math functions in Erlang
 %-module(pvectors).
--export([pvector_dist/2, pvector_sub/2, pvector_add/2, set_magnitude/2, pvector_limit/2]).
+-export([pvector_dist/2, pvector_sub/2, pvector_add/2, set_magnitude/2, pvector_limit/2, normalize/1, pvector_heading/1]).
 
 %% Define the PVector record for vector math
 -record(pvector, {x :: float(), y :: float()}).
@@ -53,3 +53,7 @@ pvector_limit(Vec, Limit) ->
         true -> set_magnitude(Vec, Limit);
         false -> Vec
     end.
+
+-spec pvector_heading(pvector()) -> float().
+pvector_heading(Vec) ->
+    math:atan2(Vec#pvector.y, Vec#pvector.x).

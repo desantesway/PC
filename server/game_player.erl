@@ -34,6 +34,7 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
             %?SEND_MESSAGE(Sock, "state\n" ++ NewState ++ "\n"),
             gamePlayer(GameProc, Sock, NewState, Index);
         {player_state} ->
+            io:format("Player ~p => state ~p\n", [self(), PlayerState]),
             NewPos = getNextPos(PlayerState),
             %io:format("Player ~p => state ~p\n", [self()], NewPos),
             Bool = checkCollision(NewPos),
@@ -46,6 +47,10 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
                     GameProc ! {player_state, self(), NewPos, PlayerIndex}
             end,
             gamePlayer(GameProc, Sock, NewPos, PlayerIndex);
+        {updated_state, NewState} ->
+            {_,_,_,Keys} = PlayerState,
+            {UsAuth, Boost, {Pos, Vel, Acc, Angle}, _} = NewState,
+            gamePlayer(GameProc, Sock, {UsAuth, Boost, {Pos,Vel,Acc,Angle}, Keys}, PlayerIndex);
         {fpieces, Data} ->
             case Data of
                 {died} ->
@@ -86,9 +91,6 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
                 {end_game} ->
                     {{Name, Level, _, XP}, _, _, _} = PlayerState,
                     accsProc ! {update_lvl, self(), Level, XP},
-                    String = "lvl@@@" ++ erlang:integer_to_list(Level) ++ "@@@XP@@@" ++ erlang:integer_to_list(XP) ++ "\n",
-                    io:fwrite("Sending ~p\n", [String]),
-                    ?SEND_MESSAGE(self(), String),
                     server:userAuth(Sock, {Name, Level, "main", XP})
             end;
         {tcp, _, Data} ->
@@ -235,7 +237,7 @@ checkCollision(PlayerState) ->
     Sunrad = ?SUN_RADIUS,
     Playrad = ?PLAYER_RADIUS,
     SunDist = pvector_dist(Pos, Sunpos),
-    SunCollide = SunDist < Playrad + (Sunrad - 20), %% Give the player some leeway man
+    SunCollide = SunDist < Playrad + (Sunrad - 10), %% Give the player some leeway man
 
     % Check for margin collisions with the screen
     %% these values are for 1920x1080 screen... I should probably ask the client for displayWidth/displayHeight
