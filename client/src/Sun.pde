@@ -24,7 +24,7 @@ class Animation {
     frame = (frame+1) % imageCount;
     noStroke();
     ellipse(x,y, sun_radius, sun_radius);
-    image(images[frame], x-5-sun_radius*1.5, y-sun_radius*1.5); // Offset due to .png dimensions. Purely aesthetic, won't be used in game logic.
+    image(images[frame], x-(sun_radius * 3 * 0.52), y-(sun_radius * 3 * 0.52)); // Offset due to .png dimensions. Purely aesthetic, won't be used in game logic.
     popMatrix();
   }
 }

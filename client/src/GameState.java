@@ -48,7 +48,7 @@ public class GameState {
     }
     
     public void setLost() {
-      this.lost = false;
+      this.lost = true;
     }
     
     public void setDeath(String user) {

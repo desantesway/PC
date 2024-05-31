@@ -2,7 +2,7 @@ import controlP5.*;
 import java.util.*;
 // CURRENT
 ControlP5 cp5;
-Textfield usernameField, passwordField, lobbyNameField;
+Textfield usernameField, passwordField, lobbyNameField, chatField;
 
 
 private static final int CREATE_ACCOUNT = 1;
@@ -33,7 +33,8 @@ enum State {
     ROOM_CREATION,
     GAME,
     LOADING,
-    GAME_END
+    GAME_END,
+    RANKING
 }
 
 /* SANDBOX CLIENT WITH NO SERVER COMMUNICATION FOR GRAPHICS / MENU FLOW TESTING */
@@ -44,7 +45,7 @@ GameState gameState;
 ChatRoom chat;
 Worker[] workers;
 State state;
-Menu startMenu, loginMenu, registerMenu, playMenu, lobbyMenu, roomCreationMenu, gameEnd;
+Menu startMenu, loginMenu, registerMenu, playMenu, lobbyMenu, roomCreationMenu, gameEnd, rankingMenu;
 Lobby roomLobby;
 float sun_radius = 200f;
 Animation sun;
@@ -64,7 +65,7 @@ int points;
 float i, m, n, p, s, t, x, y;
 String success = "success";
 String errorMsg="";
-
+String[] temp;
 PImage backgroundImg; //!!!!!!!!!!!!!
 PImage backgroundGameImg; //!!!!!!!!!!!!!
 PImage starsImg; //!!!!!!!!!!!!!
@@ -112,6 +113,8 @@ void setup() {
   gameEnd = new Menu();
   initializeGameEndMenu();
   roomLobby = new Lobby();
+  rankingMenu = new Menu();
+  initializeRankingMenu();
   //println(displayWidth, displayHeight);
   backgroundImg = loadImage("background/bg.png"); //!!!!!!!!!!!!!!!!!!
   backgroundGameImg = loadImage("background/bg_red.png");
@@ -184,6 +187,10 @@ void initializeRoomCreationMenu() {
   
 }
 
+void initializeRankingMenu() {
+  Button exitBtn = new Button("exit", displayWidth/2 - 1263/4, displayHeight * 0.9 - 50);
+  rankingMenu.addButton(exitBtn);
+}
 
 void initializeStartMenu() {
   Button loginBtn = new Button("login", displayWidth/2 - 1263/4, 75);
@@ -241,11 +248,13 @@ void initializeRegisterMenu() {
 void initializePlayMenu() {
   Button joinBtn = new Button("join", displayWidth/2 - 1263/4, 75);
   Button createBtn = new Button("create", displayWidth/2 - 1263/4, 75 + 50 + 385/2);
-  Button logoutBtn = new Button("logout", displayWidth/2 - 1263/4, 75 + (50 + 385/2)*2);
-  Button exitBtn = new Button("exit", displayWidth/2 - 1263/4, 75 + (50 + 385/2)*3);
+  Button logoutBtn = new Button("logout", 200, displayHeight - 250);
+  Button rankingBtn = new Button("ranking", displayWidth/2 - 1263/4, 75 + (50 + 385/2)*2);
+  Button exitBtn = new Button("exit", displayWidth - 800, displayHeight - 250);
   playMenu.addButton(joinBtn);
   playMenu.addButton(createBtn);
   playMenu.addButton(logoutBtn);
+  playMenu.addButton(rankingBtn);
   playMenu.addButton(exitBtn);
   
 }
@@ -253,8 +262,24 @@ void initializePlayMenu() {
 void initializeGameEndMenu() {
   Button exitBtn = new Button("exit", displayWidth / 2 - 1263/4, 75+50+385/2);
   gameEnd.addButton(exitBtn);
+  chatField = cp5.addTextfield("Chat")
+                     .setPosition((displayWidth/2),(displayHeight * 0.6))
+                     .setSize(600,60)
+                     .setColor(190)
+                     .setColorBackground(255)
+                     .setFont(createFont("arial",40))
+                     .setFocus(true)
+                     .setVisible(false);
 }
 
+  void send_message(String text) {
+    try {
+      this.tcp.send(CHAT_MESSAGE,text);
+    }catch (Exception e) {
+      println("Failed to send chat message.");
+    }
+  }
+  
 
   // Key pressed method
   void keyPressed() {
@@ -310,6 +335,15 @@ void initializeGameEndMenu() {
           }
         }
         break;
+      case GAME_END:
+        if (key == ENTER || key == RETURN) {
+          String txt = chatField.getText();
+          println("Sending txt " + txt + " to server.");
+          if (!txt.equals("")) {
+            send_message(txt);
+          }
+          chatField.setText("");
+        }
       default:
         break;
     }
@@ -373,8 +407,13 @@ void mousePressed() {
       break;
     case GAME:
       me = new Player();
+      break;
     case GAME_END:
       checkGameEndButtons();
+      break;
+    case RANKING:
+      checkRankingButtons();
+      break;
     default:
       break;
   }
@@ -419,6 +458,13 @@ void checkGameEndButtons() { // TODO - check this works
       lost = false;
       gameStarted = false;
       goSignal = false;
+      chatField.setVisible(false);
+      try {
+        this.tcp.send(LEAVE_CHAT, "");
+        this.tcp.receive("res");
+      } catch(Exception e) {
+        println("Failed to leave.");
+      }
       state = State.PLAY;
     }
   }
@@ -468,6 +514,13 @@ void checkLobbyButtons() {
   }
 }
 
+void checkRankingButtons() {
+  for (Button b: rankingMenu.getButtons()) {
+    if (b.isClicked()) {
+      state = State.PLAY;
+    }
+  }
+}
 
 void checkStartMenuButtons() {
   for (Button b: startMenu.getButtons()) {
@@ -501,6 +554,7 @@ boolean authBrowseRooms() {
   try {
     this.tcp.send(LIST_ROOMS,"");
     res = this.tcp.receive("res");
+    this.tcp.send(RANKING, "");
   } catch (IOException | InterruptedException e) {
     println("Failed");
   }
@@ -619,6 +673,23 @@ boolean authLogoutUser() {
   return res.equals(success);
 }
 
+String[] authRanking() {
+  String res = "";
+  try {
+    this.tcp.send(RANKING,"");
+    res = this.tcp.receive("res");
+  } catch (IOException | InterruptedException e) {
+    println("Failed");
+  }
+  if (!res.equals("")) {
+    String[] temp = res.split("@@@");
+    return temp;
+  }
+  else {
+    return new String[0];
+  }
+}
+
 void checkLoginMenuButtons() {
   for (Button b: loginMenu.getButtons()) {
     if (b.isClicked()) {
@@ -665,6 +736,10 @@ void checkPlayMenuButtons() {
             state = State.MENU;
           }
           break;
+        case "ranking":
+          temp = authRanking();
+          state = State.RANKING;
+          break;
         case "exit":
           exit();
           return;
@@ -710,7 +785,7 @@ void drawPlayer() {
       me.display();
   } else {
       textFont(nightcore);
-      text("YOU LOST", 700, displayHeight/2-150); 
+      text("YOU LOST", 700, 200); 
     }
  players.forEach((Key, player) -> player.display());
 }
@@ -889,11 +964,9 @@ void updateGameState() {
     gameState.l.writeLock().unlock();  // free the lock asap
   }
   if (copy != null) {
-    if (copy.won) {
+    if (copy.won || copy.lost) {
       won = true;
-      state = State.GAME_END;
-    } else if (copy.lost) {
-      lost = true;
+      chatField.setVisible(true);
       state = State.GAME_END;
     } else {
     Set<String> deaths = copy.deaths;
@@ -936,9 +1009,11 @@ void updateGameState() {
 
 void displayResultText() {
   if (lost) {
-    text("YOU LOST...", 700, displayHeight/2-150); 
+    textSize(70);
+    text("YOU LOST...", 700, 300); 
   } else {
-    text("YOU WON!", 700, displayHeight/2-150); 
+    textSize(70);
+    text("YOU WON!", 700, 300); 
   }
   ChatRoom copy = null;
   chat.l.writeLock().lock();
@@ -948,9 +1023,10 @@ void displayResultText() {
     chat.l.writeLock().unlock();  // free the lock asap
   }
   if (copy != null) {
-    List<String> result = chat.getMessages();
-    for(int i = 0; i < result.size(); i++) {
-      text(result.get(i), 600, displayHeight/2 + (100 * i));
+    List<String> result = copy.getMessages();
+    textFont(createFont("arial", 30));
+    for(int i = 0 ; i < result.size();i++) {
+      text(result.get(i), displayWidth * 0.8, displayHeight/2 + 500 - (i*100));
     }
   }
 }
@@ -1031,6 +1107,17 @@ void draw() {
     case GAME_END:
       gameEnd.drawMenu();
       displayResultText();
+      break;
+    case RANKING:
+      rankingMenu.drawMenu();
+      fill(0,190);
+      rect(displayWidth / 2 - 600, displayHeight * 0.1 - 50, displayWidth/2 + 200, displayHeight * 0.8);
+      for(int i = 0; i < temp.length; i++) {
+        fill(255);
+        textFont(campus);
+        textSize(40);
+        text(temp[i],displayWidth/2 - 400, (displayHeight * 0.1) + i*100 + 30);        
+      }
       break;
   }
   //println(frameRate);
