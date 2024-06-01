@@ -2,6 +2,7 @@
 -define(SEND_MESSAGE(Socket, Message), Socket ! {broadcast, Message}).
 -define(SEND_MUL_MESSAGE(Socket, List), Socket ! {broadcast_list, List}).
 -define(SEND_BROADCAST(Sock, Data),
+    io:format("Sending ~p~n", [Data]),
     gen_tcp:send(Sock, Data)
 ).
 

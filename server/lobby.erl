@@ -112,7 +112,7 @@ lobby(Rooms) -> % only logged can create room CHANGE
                 case maps:is_key(Room, Rooms) of
                     true ->
                         {CountProc, Level, Pids} = maps:get(Room, Rooms),
-                        if length(Pids) =< 2 ->
+                        if length(Pids) =< 1 ->
                             NRooms = maps:remove(Room, Rooms),
                             ?SEND_MESSAGE(Pid, "res@@@success\n"),
                             io:format("User ~p left room ~p~n", [Pid, Room]),

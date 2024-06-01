@@ -89,6 +89,7 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
                     end,
                     gamePlayer(GameProc, Sock, {{Name, NLvl, Lobby, NXP}, Boost, Pos, But}, PlayerIndex);
                 {end_game} ->
+                    io:format("Player ~p leaving game\n", [self()]),
                     {{Name, Level, _, XP}, _, _, _} = PlayerState,
                     accsProc ! {update_lvl, self(), Level, XP},
                     server:userAuth(Sock, {Name, Level, "main", XP})
@@ -101,6 +102,7 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
                         string:trim(binary_to_list(Message), trailing)},
                     gamePlayer(GameProc, Sock, PlayerState, PlayerIndex);
                 [<<?LEAVE_CHAT>>, _] -> % sends a chat message
+                    io:fwrite("Player ~p leaving chat\n", [self()]),
                     GameProc ! {leave_chat, self()},
                     gamePlayer(GameProc, Sock, PlayerState, PlayerIndex);
                 [<<?GO>>, _] ->
