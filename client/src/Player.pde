@@ -8,7 +8,7 @@ class Player {
   float topspeed;
   float radius = 25f; // default radius of a player 
   PVector sunPos = new PVector(displayWidth/2, displayHeight/2);
-  int booster = 100;
+  float booster = 100.0;
   PImage PlayerImg, ShadowImg;
   boolean registered;
   
@@ -40,7 +40,7 @@ class Player {
     ShadowImg.resize(25, 50);
   }
 
-  int getBoost() {
+  float getBoost() {
     return this.booster;
   }
   
@@ -48,7 +48,8 @@ class Player {
     this.angle = a;
   }
   
-  void setPos(float x, float y) {
+  void setPos(float boost, float x, float y) {
+    this.booster = boost;
     this.x = x;
     this.y = y;
   }

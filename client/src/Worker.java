@@ -34,8 +34,8 @@ class PosWorker extends Worker {
                   this.gameState.l.readLock().lock();
                   String user = pos[0];
                   // pos1@@@Username@@@Boost@@@x@@@y@@@Angle
-                  this.gameState.setBoost(Integer.parseInt(pos[1]));
-                  this.gameState.setPos(user, Float.parseFloat(pos[2]), Float.parseFloat(pos[3]), Float.parseFloat(pos[4]));
+                  //this.gameState.setBoost();
+                  this.gameState.setPos(user, Integer.parseInt(pos[1]), Float.parseFloat(pos[2]), Float.parseFloat(pos[3]), Float.parseFloat(pos[4]));
                 } finally {
                     this.gameState.l.readLock().unlock();
                 }

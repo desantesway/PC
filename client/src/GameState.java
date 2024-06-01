@@ -6,7 +6,6 @@ public class GameState {
      * Since GameState will be continuously updated by the server and read by the client, 
      * we need to implement a ReadWriteLock to ensure that the data is consistent.
      */
-    private int boost;
     public ReadWriteLock l = new ReentrantReadWriteLock();
     public Set<String> deaths;
     public Map<String, float[]> positions;  // <Username, float[2]>
@@ -15,7 +14,6 @@ public class GameState {
     public boolean lost, won;
     
     public GameState() {
-        this.boost = 10000;
         this.l = new ReentrantReadWriteLock();
         this.deaths = new HashSet<>();
         this.positions = new HashMap<>();
@@ -24,8 +22,7 @@ public class GameState {
     }
     
 
-    public GameState(int boost, Set<String> death,Map<String, float[]> pos, Map<String, float[]> ps, boolean countdown, boolean l, boolean w){
-        this.boost = boost;
+    public GameState(Set<String> death,Map<String, float[]> pos, Map<String, float[]> ps, boolean countdown, boolean l, boolean w){
         this.positions = pos;
         this.planets = ps;
         this.countdown = countdown;
@@ -35,7 +32,7 @@ public class GameState {
     }
     
     public GameState copy() {
-      return new GameState(this.boost, this.deaths,this.positions, this.planets, this.countdown, this.lost, this.won);
+      return new GameState(this.deaths,this.positions, this.planets, this.countdown, this.lost, this.won);
 
     }
     
@@ -56,8 +53,8 @@ public class GameState {
       this.positions.remove(user);
     }
     
-    public void setPos(String user, float x, float y, float angle) {
-        this.positions.put(user, new float[]{x, y, angle});
+    public void setPos(String user, float boost, float x, float y, float angle) {
+        this.positions.put(user, new float[]{boost, x, y, angle});
     }
 
     public void setPlanetPos(String i,float x, float y, float velX, float velY) {
@@ -66,11 +63,6 @@ public class GameState {
 
     public void setCountdown(boolean countdown){
         this.countdown = countdown;
-    }
-    
-
-    public void setBoost(int booster){
-        this.boost = booster;
     }
     
     public boolean example() {

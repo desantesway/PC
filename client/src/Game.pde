@@ -77,7 +77,7 @@ float translateStarsBlured = 0; //!!!!!!!!!!!!!
 
 boolean gameStarted = false;
 boolean goSignal = false;
-boolean won,lost;
+boolean won;
 
  
 
@@ -181,7 +181,7 @@ void initializeWorkers() {
 
 void initializeRoomCreationMenu() {
   Button createBtn = new Button("create", displayWidth/2 - 1263/2 - 100, displayHeight/2 + 385/2); 
-  Button exitBtn = new Button("exit", displayWidth/2 + 100 , displayHeight/2 + 300);
+  Button exitBtn = new Button("exit", displayWidth/2 + 100 , displayHeight/2 + 385/2);
   roomCreationMenu.addButton(createBtn);
   roomCreationMenu.addButton(exitBtn);
   
@@ -260,10 +260,10 @@ void initializePlayMenu() {
 }
 
 void initializeGameEndMenu() {
-  Button exitBtn = new Button("exit", displayWidth / 2 - 1263/4, 75+50+385/2);
+  Button exitBtn = new Button("exit", displayWidth / 2 - 1263/4, displayHeight/2);
   gameEnd.addButton(exitBtn);
   chatField = cp5.addTextfield("Chat")
-                     .setPosition((displayWidth/2),(displayHeight * 0.6))
+                     .setPosition(150,displayHeight - 150)
                      .setSize(600,60)
                      .setColor(190)
                      .setColorBackground(255)
@@ -455,7 +455,6 @@ void checkGameEndButtons() { // TODO - check this works
   for(Button b: gameEnd.getButtons()) {
     if (b.isClicked()) {
       won = false;
-      lost = false;
       gameStarted = false;
       goSignal = false;
       chatField.setVisible(false);
@@ -916,8 +915,8 @@ void initializeGameState() {
       float[] posAngle = entry.getValue();
       if (name.equals(username)) {
         me.setUsername(name);
-        me.setPos(posAngle[0], posAngle[1]);
-        me.setAngle(posAngle[2]);          
+        me.setPos(posAngle[0], posAngle[1], posAngle[2]);
+        me.setAngle(posAngle[3]);          
       } else {
         if (!p1.getStatus()){
             p1 = new Player(posAngle[0], posAngle[1], posAngle[2], name);
@@ -965,7 +964,12 @@ void updateGameState() {
   }
   if (copy != null) {
     if (copy.won || copy.lost) {
-      won = true;
+      if(copy.won){
+        won = true;
+      
+      }else{
+        won = false;
+      }
       chatField.setVisible(true);
       state = State.GAME_END;
     } else {
@@ -987,13 +991,13 @@ void updateGameState() {
       float[] posAngle = entry.getValue();
       if (name.equals(username)) {
         if (me != null) {
-          me.setPos(posAngle[0], posAngle[1]);
-          me.setAngle(posAngle[2]);     
+          me.setPos(posAngle[0], posAngle[1], posAngle[2]);
+          me.setAngle(posAngle[3]);      
         }
       }else {
          Player e = players.get(name);
-         e.setPos(posAngle[0], posAngle[1]);
-         e.setAngle(posAngle[2]);
+         e.setPos(posAngle[0], posAngle[1], posAngle[2]);
+         e.setAngle(posAngle[3]); 
        }
       }
    for (Map.Entry<String, float[]> e : pls.entrySet()) {
@@ -1008,7 +1012,7 @@ void updateGameState() {
 }
 
 void displayResultText() {
-  if (lost) {
+  if (!won) {
     textSize(70);
     text("YOU LOST...", 700, 300); 
   } else {
@@ -1110,13 +1114,27 @@ void draw() {
       break;
     case RANKING:
       rankingMenu.drawMenu();
-      fill(0,190);
-      rect(displayWidth / 2 - 600, displayHeight * 0.1 - 50, displayWidth/2 + 200, displayHeight * 0.8);
-      for(int i = 0; i < temp.length; i++) {
-        fill(255);
-        textFont(campus);
-        textSize(40);
-        text(temp[i],displayWidth/2 - 400, (displayHeight * 0.1) + i*100 + 30);        
+      fill(0, 190);
+      rect(displayWidth / 2 - 600, displayHeight * 0.1 - 50, displayWidth / 2 + 200, displayHeight * 0.8);
+      
+      fill(255);
+      textSize(40);
+      textFont(campus);
+    
+      // Headers
+      text("Name", displayWidth / 2 - 400, displayHeight * 0.1);
+      text("Level", displayWidth / 2 + 200, displayHeight * 0.1);
+      text("XP", displayWidth / 2 + 400, displayHeight * 0.1);
+    
+      for (int i = 0; i < temp.length; i++) {
+        String[] parts = temp[i].split("_");
+        String name = parts[0];
+        String level = parts[1];
+        String xp = parts[2];
+    
+        text(name, displayWidth / 2 - 400, (displayHeight * 0.1) + (i + 1) * 100 + 30);
+        text(level, displayWidth / 2 + 200, (displayHeight * 0.1) + (i + 1) * 100 + 30);
+        text(xp, displayWidth / 2 + 400, (displayHeight * 0.1) + (i + 1) * 100 + 30);
       }
       break;
   }
