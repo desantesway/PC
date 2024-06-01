@@ -24,7 +24,6 @@ server(Port) ->
 init(Sock)->
     receive
         {loaded, Accs, Lvl} ->
-            io:fwrite("Loaded~p~n~p\n", [Lvl, Accs]),
             register(accsProc, spawn(fun()->accounts:start(Accs, Lvl) end)),
             register(lobbyProc, spawn(fun()->lobby:start() end)),
             spawn(fun() -> acceptor(Sock) end),
@@ -53,7 +52,6 @@ acceptor(LSock) ->
         end.
 
 userWait(Sock, User) ->
-    %io:fwrite("User ~p waiting~n", [User]),
     receive
         {fpieces, Data} ->
             case Data of
@@ -100,7 +98,6 @@ userWait(Sock, User) ->
     end.
 
 userAuth(Sock, User) ->
-    % io:fwrite("User ~p auth~n", [User]),
     receive
     {broadcast, Data} ->
         ?SEND_BROADCAST(Sock, Data),
@@ -120,7 +117,6 @@ userAuth(Sock, User) ->
                 userAuth(Sock, {UserN, Level, Room, XP});
             {countdown, Room} ->
                 {_, _, Lobby, _} = User,
-                io:fwrite("Starting countdown for ~p~n", [Room]),
                 Game = spawn(fun() -> game_sim:start(Room) end),
                 CountProc = spawn(fun() -> countdown(Lobby, Game) end),
                 self() ! {fpieces, {wait}}, 
@@ -141,21 +137,18 @@ userAuth(Sock, User) ->
     {tcp, _, Data} ->
         case re:split(binary_to_list(Data), "@@@") of
             [<<?CREATE_ACCOUNT>>, UserName, Password] ->
-                io:fwrite("creating ~p\n", [User]),
                 accsProc ! {create_account, 
                 string:trim(binary_to_list(UserName), trailing), 
                 string:trim(binary_to_list(Password), trailing), 
                 self()},
                 userAuth(Sock, User);
             [<<?LOGIN_ACCOUNT>>, UserName, Password] ->
-                io:format("logging in ~p\n", [User]),
                 accsProc ! {login, 
                 string:trim(binary_to_list(UserName), trailing), 
                 string:trim(binary_to_list(Password), trailing), 
                 self()},
                 userAuth(Sock, User);
             [<<?LOGOUT_ACCOUNT>>, _] ->
-                io:format("Logging out ~p\n", [User]),
                 accsProc ! {logout, self()},
                 userAuth(Sock, User);
             [<<?JOIN_ROOM>>, Room] ->

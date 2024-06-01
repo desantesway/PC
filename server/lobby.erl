@@ -4,15 +4,13 @@
 
 start() -> lobby(#{}).
 % gestor de salas do jogo
-lobby(Rooms) -> % only logged can create room CHANGE
-    %% io:format("Rooms ~p~n", [Rooms]),
+lobby(Rooms) ->
     receive
         {countdown_started, CountProc, Room}  ->
             case maps:is_key(Room, Rooms) of
                 true -> 
                     {_, Lvl, Pids} = maps:get(Room, Rooms),
                     NRooms = maps:put(Room, {CountProc, Lvl, Pids}, Rooms),
-                    io:format("Sending countdown to room ~p~n", [Room]),
                     lists:foreach(fun(Pid) -> ?SEND_MESSAGE(Pid, "res@@@countdown_started\n") end, Pids),
                     lobby(NRooms);
                 false -> 
@@ -46,7 +44,6 @@ lobby(Rooms) -> % only logged can create room CHANGE
                                 if length(Pids) < 4 -> % maximo de jogadores
                                     NRooms = maps:put(Room, {CountProc, RLevel, [Pid | Pids]} , Rooms),
                                     ?CHANGE_STATE(Pid, {new_room, Room}),
-                                    io:fwrite("User ~p joined room ~p~n", [User, Room]),
                                     ?SEND_MESSAGE(Pid, "res@@@success\n"),
                                     if (length(Pids) + 1) == 2 -> %% start countdown
                                         ?CHANGE_STATE(Pid, {countdown, Room}); 
@@ -86,7 +83,7 @@ lobby(Rooms) -> % only logged can create room CHANGE
                         lobby(NRooms)
                 end
             end;
-        {list_rooms, Level, Pid} -> % lista as salas ao jogador -- resolver
+        {list_rooms, Level, Pid} -> % lista as salas ao jogador
             Ver = fun(Key, Value, Acc) -> 
                 {CountProc, RLevel, Pids} = Value,
                 if (Level == RLevel orelse Level == RLevel + 1 orelse Level == RLevel - 1) andalso (length(Pids) < 4) andalso (CountProc == self()) ->
@@ -115,7 +112,6 @@ lobby(Rooms) -> % only logged can create room CHANGE
                         if length(Pids) =< 1 ->
                             NRooms = maps:remove(Room, Rooms),
                             ?SEND_MESSAGE(Pid, "res@@@success\n"),
-                            io:format("User ~p left room ~p~n", [Pid, Room]),
                             ?CHANGE_STATE(Pid, {new_room, "main"}),
                             lobby(NRooms);
                         true ->

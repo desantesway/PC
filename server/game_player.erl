@@ -27,22 +27,18 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
             gamePlayer(GameProc, Sock, PlayerState, PlayerIndex);
         {start_pos, Index} -> % só é chamado uma vez para a posiçao inicial
             NewState = setupPlayerState(PlayerState, Index), 
-            %io:format("Starting state ~p\n", [NewState]),
             GameProc ! {starting_pos, self(), NewState, Index},
             %{{Name,_,_,_}, Boost, {VecPos, _,_, _}, _} = NewState,
             % Mensagem pode ser imediatamente enviada ao jogador. maybe. or wait until all player states are set up
             %?SEND_MESSAGE(Sock, "state\n" ++ NewState ++ "\n"),
             gamePlayer(GameProc, Sock, NewState, Index);
         {player_state} ->
-            io:format("Player ~p => state ~p\n", [self(), PlayerState]),
             NewPos = getNextPos(PlayerState),
-            %io:format("Player ~p => state ~p\n", [self()], NewPos),
             Bool = checkCollision(NewPos),
             case Bool of 
                 true -> % if the player collides with the sun or the screen
                     Me = self(),
-                    GameProc ! {died, Me},
-                    io:format("Position of death: ~p\n", [NewPos]);
+                    GameProc ! {died, Me};
                 false -> % if the player does not collide with the sun or the screen
                     GameProc ! {player_state, self(), NewPos, PlayerIndex}
             end,
@@ -89,7 +85,6 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
                     end,
                     gamePlayer(GameProc, Sock, {{Name, NLvl, Lobby, NXP}, Boost, Pos, But}, PlayerIndex);
                 {end_game} ->
-                    io:format("Player ~p leaving game\n", [self()]),
                     {{Name, Level, _, XP}, _, _, _} = PlayerState,
                     accsProc ! {update_lvl, self(), Level, XP},
                     server:userAuth(Sock, {Name, Level, "main", XP})
@@ -102,25 +97,24 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
                         string:trim(binary_to_list(Message), trailing)},
                     gamePlayer(GameProc, Sock, PlayerState, PlayerIndex);
                 [<<?LEAVE_CHAT>>, _] -> % sends a chat message
-                    io:fwrite("Player ~p leaving chat\n", [self()]),
                     GameProc ! {leave_chat, self()},
                     gamePlayer(GameProc, Sock, PlayerState, PlayerIndex);
                 [<<?GO>>, _] ->
                     GameProc ! {go},
                     gamePlayer(GameProc, Sock, PlayerState, PlayerIndex);
-                [<<?UP_KEY>>, _] -> % sum about new button pressed (?)
+                [<<?UP_KEY>>, _] ->
                     {Name, Boost, {Pos, Vel, Acc, Angle}, {UP, DOWN, LEFT, RIGHT}} = PlayerState,
                     NewKeys = {toggle(UP), DOWN, LEFT, RIGHT},
                     NewPlayerState = {Name, Boost, {Pos, Vel, Acc, Angle}, NewKeys},
                     % as if the calculations made the player die;
                     %GameProc ! {died, self()}, % !!!! ONLY FOR TESTING DEATH/XP this is supposed to be handled by the game_sim, not the player
                     gamePlayer(GameProc, Sock, NewPlayerState, PlayerIndex);
-                [<<?RIGHT_KEY>>, _] -> % sum about new button pressed (?)
+                [<<?RIGHT_KEY>>, _] ->
                     {Name, Boost, {Pos, Vel, Acc, Angle}, {UP, DOWN, LEFT, RIGHT}} = PlayerState,
                     NewKeys = {UP, DOWN, LEFT, toggle(RIGHT)},
                     NewPlayerState = {Name, Boost, {Pos, Vel, Acc, Angle}, NewKeys},
                     gamePlayer(GameProc, Sock, NewPlayerState, PlayerIndex);
-                [<<?LEFT_KEY>>, _] -> % sum about new button pressed (?)
+                [<<?LEFT_KEY>>, _] ->
                     {Name, Boost, {Pos, Vel, Acc, Angle}, {UP, DOWN, LEFT, RIGHT}} = PlayerState,
                     NewKeys = {UP, DOWN, toggle(LEFT), RIGHT},
                     NewPlayerState = {Name, Boost, {Pos, Vel, Acc, Angle}, NewKeys},
@@ -146,15 +140,12 @@ gamePlayer(GameProc, Sock, PlayerState, PlayerIndex) ->
             gamePlayer(GameProc, Sock, PlayerState, PlayerIndex)
     end.
 
-
-% helper function to toggle a boolean value - why does erlang not have a ! operator???
+% helper function to toggle a boolean value
 toggle(true) -> false;
 toggle(false) -> true.
 
-
 %% Initialize a player state with a given index Playerpos
 setupPlayerState(PlayerState, Playerpos) -> % I need the player position. Player 1 gets position #1 ... Player 4 gets position #4
-    io:format("Attempting to get playerState ~p\n", [PlayerState]),
     InitialPos = lists:nth(Playerpos, ?START_POS),
     Vec = #pvector{x = 0.0, y = 0.0},
     KeyMap = {false, false, false,false}, %default keymap {up,left,right}
@@ -170,7 +161,7 @@ getNextPos(PlayerState) ->
     AccMag = ?ACCEL_MAG,
     Topspeed = ?TOP_SPEED,
     Accel = pvector_sub(Sunpos, Pos), % Get the vector from the player to the sun
-    Accel1 = set_magnitude(Accel, AccMag), % Limit the magnitude of the acceleration vector to 0.1
+    Accel1 = set_magnitude(Accel, AccMag),
     KeyAccel = #pvector{x=0,y=0},
     case Boost of
         0 -> 
@@ -242,8 +233,6 @@ checkCollision(PlayerState) ->
     SunCollide = SunDist < Playrad + (Sunrad - 10), %% Give the player some leeway man
 
     % Check for margin collisions with the screen
-    %% these values are for 1920x1080 screen... I should probably ask the client for displayWidth/displayHeight
-    %% or just force the client to be 1920x1080 :)
     CollideX = case Pos#pvector.x of 
                    X when X < -10 ->  
                        true;

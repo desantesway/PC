@@ -1,14 +1,11 @@
 -module(game_sim).
 -include("server.hrl").
 -export([start/1]).
--define(TICK_RATE, 16). % Testing with 33ms second ticks - change later and see what works best
+-define(TICK_RATE, 16).
 -include("pvectors.hrl").
--define(PLANET_RADIUS, 45). % Radius of the planets
+-define(PLANET_RADIUS, 45).
 
 start(Name) -> 
-
-    %% io:fwrite("Game ~p started~n", [Name]),
-    
     GameProc = self(),
     ColProc = spawn(fun() -> check_pairs(GameProc) end),
 
@@ -21,7 +18,7 @@ gameTick(GameProc) ->
     receive
         stop ->
             ok
-        after  % Proceed anyway after TICK_RATE milliseconds
+        after
             ?TICK_RATE ->
                 GameProc ! {tick},
                 gameTick(GameProc)
@@ -31,7 +28,6 @@ gameTick(GameProc) ->
 gameChat(GameProc, OnChat) ->
     receive
         {new_message, Pid, Message} -> % sends message to all players
-            io:format("Onchat ~p\n", [OnChat]),
             ToSend = "chat@@@msg@@@" ++ maps:get(Pid, OnChat) ++ "@@@" ++ Message ++ "\n",
             lists:foreach(fun(Key) -> ?SEND_MESSAGE(Key, ToSend) end, maps:keys(OnChat)),
             gameChat(GameProc, OnChat);
@@ -51,7 +47,6 @@ afterGame(Chat, Name, Pids) ->
             Chat ! {new_message, Pid, Message},
             afterGame(Chat, Name, Pids);
         {leave_chat, Pid} ->
-            io:format("Player ~p left the game~n", [Pid]),
             Chat ! {pid_left, Pid},
             ?SEND_MESSAGE(Pid, "game@@@end_game\n"),
             ?CHANGE_STATE(Pid, {end_game}),
@@ -60,19 +55,14 @@ afterGame(Chat, Name, Pids) ->
             Keys = maps:keys(NewPids),
             if length(Keys) == 0 -> % if there are no players left
                 finished;
-                %ColProc ! {stop_col},
-                %PlanetsProc ! {quit_planets},
-                %ticker ! {stop};
             true ->
                 afterGame(Chat, Name, NewPids)
             end
     end.
 
-gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, Pids, Countdown, PlayerCount, Indexes) -> % pids => {alive?, username,playerstate} IMPLEMENTAR COUNTDOWN
-    %%io:format("Game ~p\n", [Pids]),
+gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, Pids, Countdown, PlayerCount, Indexes) ->
     receive
         {tick} -> % request and sends info of the current to all players
-            %%io:fwrite("Got the tick\n"),
             lists:foreach(fun(Pid) ->
                 case maps:get(Pid, Pids) of
                     {true, _, _} -> 
@@ -81,13 +71,11 @@ gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, Pids, Countdown, PlayerCount, 
                         continue
                 end
             end, maps:keys(Pids)),
-            %io:format("ticked ~p\n", [Pids]),
             gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, Pids, Countdown, PlayerCount, Indexes);
         {player_state, Pid, PlayerState, Index} -> % get player state
             {Alive, Username, _} = maps:get(Pid, Pids),
             NewPids = maps:put(Pid, {Alive,Username,PlayerState}, Pids),
             Indexes1 = maps:put(Pid, {Index, true}, Indexes),
-            %io:format("Player ~p state ~p\n", [Username, PlayerState]), 
             Bool = lists:all(fun({_, Value}) -> Value == true end, maps:values(Indexes1)),
             if Bool ->   % if all are marked as true <received>, check collisions and stuff
                 AlivePredicate = fun(_Pid, {Living, _, _}) -> Living == true end,
@@ -104,7 +92,6 @@ gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, Pids, Countdown, PlayerCount, 
                                 send_states(NewPids,Indexes2),
                                 gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, NewPids, Countdown, PlayerCount, Indexes2); % No changes, continue
                             _ ->
-                                io:format("Countdown ended, starting endgame~n"),
                                 LastAlive = maps:keys(AlivePidStates),
                                 LastAlive1 = lists:nth(1, LastAlive),
 
@@ -119,7 +106,6 @@ gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, Pids, Countdown, PlayerCount, 
                             end, Indexes1, Indexes1),
                         receive 
                             {update, NewPidStates} ->
-                                io:format("Received new pids~n"),
                                 % Update states and send them to all players - collision manager only checked for alive players
                                 UpdatePids = maps:fold(fun(Key, Value, Acc) -> 
                                     maps:put(Key, Value, Acc)
@@ -168,9 +154,7 @@ gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, Pids, Countdown, PlayerCount, 
             NewPids = maps:put(Pid, {true, Username, #{}}, Pids),
             Count = maps:size(NewPids),
             Pid ! {start_pos, Count},
-            %io:format("Index is currently ~p\n", [Index]),
             if Count == PlayerNum ->
-                io:format("All players joined\n"),
                 gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, NewPids, Countdown, PlayerNum, Indexes);
             true ->
                 gameSim(Ticker, Chat, PlanetsProc, ColProc, Name,NewPids, Countdown, PlayerNum, Indexes)
@@ -193,7 +177,6 @@ gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, Pids, Countdown, PlayerCount, 
         {died, Pid} ->
             NewIndexes = maps:remove(Pid, Indexes),
             {_, Username,_} = maps:get(Pid, Pids),
-            io:format("Player ~p died by crashing into the fucking sun\n", [Username]),
             ?CHANGE_STATE(Pid, {died}),
             Chat ! {new_pid, Pid, Username},
             Chat ! {new_message, Pid, Username ++ " died\n"},
@@ -208,7 +191,7 @@ gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, Pids, Countdown, PlayerCount, 
                 0 ->
                     self() ! {start_end_game, Pid},
                     gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, NewPids, true, PlayerCount, NewIndexes); % se chegou aqui é porque o jogo ainda não tinha acabado quando morreu
-                1 -> % start countdown on another proccess
+                1 ->
                     GameProc = self(),
                     spawn(fun() -> countdown(GameProc) end),
                     gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, NewPids, true, PlayerCount, NewIndexes);
@@ -238,7 +221,6 @@ gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, Pids, Countdown, PlayerCount, 
                 afterGame(Chat, Name, Pids)
             end;
         {interrupt_game, RIP} -> % ends the game removing all pids
-            %NewPids = maps:remove(RIP, Pids),
             NewIndexes = maps:remove(RIP, Indexes),
             NewIndexesLength = length(maps:keys(NewIndexes)),
             case NewIndexesLength of 
@@ -255,10 +237,8 @@ gameSim(Ticker, Chat, PlanetsProc, ColProc, Name, Pids, Countdown, PlayerCount, 
     end.
 
 countdown(GameProc)-> 
-    io:format("Countdown started ~p\n", [GameProc]),
     GameProc !  {countdown_started},
     timer:sleep(5000),
-    io:format("Countdown ended\n"),
     GameProc !  {countdown_ended}.
 
 send_states(States,Indexes) ->
@@ -305,18 +285,15 @@ check_pairs(CallerPid) ->
                             {P1, P2, S1, S2} = check_collisions(Pid1, Pid2, State1, State2),
                             Acc1 = maps:put(P1, S1, Acc),
                             Acc2 = maps:put(P2, S2, Acc1),
-                            io:format("Updated pids ~p~n", [Acc2]),
                             Acc2
                         end,
                         PidStates,
                         Pairs
                     ),
-                    io:format("Updated pids ~p~n", [UpdatedPids]),
                     CallerPid ! {update, UpdatedPids},
                     check_pairs(CallerPid)
                 end;
         {stop_col} ->
-            io:format("Stopping col manager~n"),
             ok
     end.
 
@@ -327,7 +304,6 @@ check_collisions(Pid1, Pid2, {Alive1,Username1,{UserAuth1, Boost1, {Pos1, Vel1, 
     Distance = pvector_dist(Pos1, Pos2),
     case Distance < 50 of   %% 50 = player_radius * 2
         true ->
-            io:format("Collision between ~p and ~p~n", [Pid1, Pid2]),
             Dx = Pos2#pvector.x - Pos1#pvector.x,
             Dy = Pos2#pvector.y - Pos1#pvector.y,
             Angle = pvector_heading(#pvector{x=Dx, y=Dy}),
@@ -370,7 +346,6 @@ planets_manager(GameProc, PlanetStates) ->
                     {Pos,Vel} = maps:get(PlanetKey, StartPlanetStates),
                     FormattedData = io_lib:format("p~w@@@~w@@@~w@@@~w@@@~w~n", [PlanetKey,Pos#pvector.x,Pos#pvector.y,Vel#pvector.x,Vel#pvector.y]),
                     StringData = lists:flatten(FormattedData),
-                    io:format("~p", [StringData]),
                     ?SEND_MESSAGE(Key, StringData)
                 end, Loop2)
             end, PlayerPids),
@@ -383,7 +358,6 @@ planets_manager(GameProc, PlanetStates) ->
                 Died = planet_collision(Pos, PlanetStates),
                 case Died of
                     true ->
-                        io:format("Player ~p died to a planet~n", [Key]),
                         GameProc ! {died, Key};
                     _ ->
                         ok
@@ -399,7 +373,6 @@ planets_manager(GameProc, PlanetStates) ->
             sendPlanetStates(PlanetStates, Pids),
             planets_manager(GameProc, NextPlanetStates);
         {quit_planets} ->
-            io:format("Stopping planets manager~n"),
             ok
     end.
 
@@ -468,7 +441,7 @@ nextPlanetPos({Pos, Vel}) -> %% TODO - ADJUST VALUES MAGNITUDE AND VELOCITY LIMI
     Accel = pvector_sub(SunPos, Pos), % Get the vector from the player to the sun
     Accel1 = set_magnitude(Accel, 0.04), %% TODO - Change the magnitude after testing, planet should be floating more
     NewVel = pvector_add(Vel, Accel1),
-    NewLimitedVel = pvector_limit(NewVel, 5), % Planets should be a little slower than the player ? 
+    NewLimitedVel = pvector_limit(NewVel, 5),
     NewPos = pvector_add(Pos, NewLimitedVel),
     {NewPos, NewLimitedVel}.
 

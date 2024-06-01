@@ -5,7 +5,6 @@
 start(Accs, Lvl) -> accounts(maps:new(), Accs, Lvl).
 
 accounts(SPids, Accs, Lvl) ->
-    %%io:format("Accounts ~p~n ~p~n ~p~n", [SPids, Accs, Lvl]),
     receive
         {save_acc, DAccs} -> 
             offProc ! {full_save, "accounts.bin", DAccs},
@@ -114,10 +113,7 @@ accounts(SPids, Accs, Lvl) ->
                                             false -> Lvl1 > Lvl2
                                         end
                                     end, maps:to_list(Lvl)),
-            %Ranking = [],
             Ranking = [Name ++ "_" ++ integer_to_list(A) ++ "_" ++ integer_to_list(B) || {Name, {A, B}} <- RankedList],
-            %Ranking = [lists:flatten(io_lib:format("~s_~p_~p", [Name, A, B])) ||  <- RankedList],
-            io:format("Ranking ~p~n", [Ranking]),
             ?SEND_MUL_MESSAGE(Pid, Ranking),
             accounts(SPids, Accs, Lvl);
         {update_lvl, Pid, NewLvl, NewXP} ->
