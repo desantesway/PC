@@ -1,6 +1,6 @@
 # Concurrent programming / Programação concorrente
 
-# Grade 19/20 ⭐
+## Grade 19/20 ⭐
 
 A third-year academic project to develop a real-time, multiplayer game with a high-performance server architecture. The core technical challenge was designing a client-server system capable of handling massive concurrent requests using multithreading while preventing race conditions and deadlocks.
 
@@ -10,4 +10,4 @@ A third-year academic project to develop a real-time, multiplayer game with a hi
 
 - Backend: Built in Erlang for its renowned concurrency model, ensuring a robust and scalable server to manage real-time player state and collision resolution.
 
-# Installing and running the project
+## Installing and running the project
