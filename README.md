@@ -1,16 +1,36 @@
-# Concurrent programming / Programação concorrente
+# Concurrent Programming / Programação Concorrente
 
-## Grade 19/20 ⭐
+## 🏆 Grade: 19/20
 
-A third-year academic project to develop a real-time, multiplayer game with a high-performance server architecture. The core technical challenge was designing a client-server system capable of handling massive concurrent requests using multithreading while preventing race conditions and deadlocks.
+A third-year academic project focused on building a **real-time, multiplayer game** with a **high-performance server architecture**.  
+The main challenge was designing a **client-server system** capable of handling **massive concurrent requests** using **multithreading**, while preventing **race conditions** and **deadlocks**.
 
-- Gameplay: Players control a planet orbiting a central sun, using the A, W, S, and D keys to navigate. Collisions with obstacles kills the player, with other players cause a realistic "bounce" effect, altering momentum and trajectory. It can also display rooms available, create, join rooms, create/login accounts, xp/level system and display a leaderboard of all players. 
+---
 
-- Frontend: Developed in Java using the Processing framework for graphics, physics, and user input.
+## 🎮 Gameplay
+- Players control a **planet orbiting a central sun**, navigating with `W`, `A`, `S`, `D`.
+- **Collisions**:
+  - With obstacles → the player dies.  
+  - With other players → a **realistic bounce effect** occurs, altering momentum and trajectory.
+- Additional features:
+  - Display available rooms
+  - Create / join rooms
+  - Account creation & login system
+  - XP / Level system
+  - Global leaderboard of all players
 
-- Backend: Built in Erlang for its renowned concurrency model, ensuring a robust and scalable server to manage real-time player state and collision resolution.
+---
 
-## Installing and running the project
+## 🛠️ Tech Stack
+- **Frontend**: Java with **Processing** for graphics, physics, and input handling.  
+- **Backend**: **Erlang**, leveraging its concurrency model to manage:
+  - Real-time player state  
+  - Collision resolution  
+  - Scalable, robust server performance  
+
+---
+
+## 🚀 Installation & Running
 
 1.  **Clone the Repository:**
     ```bash
