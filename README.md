@@ -11,3 +11,27 @@ A third-year academic project to develop a real-time, multiplayer game with a hi
 - Backend: Built in Erlang for its renowned concurrency model, ensuring a robust and scalable server to manage real-time player state and collision resolution.
 
 ## Installing and running the project
+
+1.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/desantesway/PC.git
+    cd PC
+    ```
+2. **Run the server first**
+   
+   2.1. **Server directory**
+   ```bash
+    cd server
+   ```
+
+   2.2. **Run the server in your desired IDE that supports Erlang**
+   
+3. **Run the client**
+   
+   3.1. **Client directory**
+   ```bash
+    cd client
+   ```
+
+   3.2. **Run the client in your processing IDE**
+
